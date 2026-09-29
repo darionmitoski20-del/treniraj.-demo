@@ -26,6 +26,9 @@ function myClients() {
 function pendingRequests() { return store.get().requests.filter((r) => r.trainerId === tid() && r.status === 'pending'); }
 
 function accept(id) {
+  const req = store.get().requests.find((x) => x.id === id);
+  store.markStep('req');
+  store.notify(req.clientId, store.trainer(req.trainerId).name + ' го прифати твоето барање', '#/c/messages/' + req.trainerId);
   store.set((s) => {
     const r = s.requests.find((x) => x.id === id);
     const links = s.links.some((l) => l.clientId === r.clientId && l.trainerId === r.trainerId) ? s.links : [...s.links, { clientId: r.clientId, trainerId: r.trainerId, since: 'нов' }];
@@ -36,6 +39,8 @@ function accept(id) {
   toast('Барањето е прифатено. Клиентот доби порака.');
 }
 function decline(id) {
+  const req = store.get().requests.find((x) => x.id === id);
+  store.notify(req.clientId, store.trainer(req.trainerId).name + ' моментално нема место. Пробај друг тренер.', '#/');
   store.set((s) => ({ ...s, requests: s.requests.map((x) => (x.id === id ? { ...x, status: 'declined' } : x)) }));
   toast('Барањето е одбиено.');
 }
@@ -82,7 +87,8 @@ function setOverride(patch) {
 const cState = { tab: 'Активни', q: '' };
 export const clients = {
   title: 'Клиенти',
-  render() {
+  render(p, query) {
+    if (query.tab === 'req' && !cState.fromQuery) { cState.tab = 'Барања'; cState.fromQuery = true; }
     const s = store.get();
     const reqs = pendingRequests();
     const q = cState.q.toLowerCase();
@@ -134,7 +140,7 @@ export const messages = {
   },
   mount() { scrollChat(); },
   actions: {
-    sendMsg(form, ev, cur) { const cid = activeClient(cur); send(cid, tid(), tid(), form.text.value, null); },
+    sendMsg(form, ev, cur) { const cid = activeClient(cur); if (form.text.value.trim()) store.markStep('msg'); send(cid, tid(), tid(), form.text.value, cid); },
     attach(el, ev, cur) { attachVideo(activeClient(cur), tid(), tid()); },
     videoCall() { toast('Во вистинската апликација тука се отвора видео повик.'); },
   },
@@ -180,6 +186,8 @@ export const calendar = {
     },
     saveSlot(form) {
       const c = clientInfo(form.c.value);
+      store.markStep('cal');
+      store.notify(c.id, 'Нов термин: ' + DAY_NAMES[Number(form.d.value)] + ', ' + form.t.value, '#/c/booking');
       store.set((s) => ({ ...s, bookings: [...s.bookings, { id: store.uid('b'), clientId: c.id, clientName: c.name, trainerId: tid(), day: Number(form.d.value), time: form.t.value, type: form.type.value }] }));
       closeModal(); toast('Терминот е додаден.');
     },
@@ -204,10 +212,10 @@ export const plans = {
       '<div class="chips">' + rows.map((_, i) => '<button type="button" class="chip' + (i === planState.day ? ' on' : '') + '" data-act="pDay" data-val="' + i + '">Ден ' + (i + 1) + '</button>').join('') + '<button type="button" class="chip dashed" data-act="addDay">+ Ден</button></div>' +
       '<div class="table plan-table"><div class="tr th"><span>#</span><span>ВЕЖБА</span><span>СЕРИИ</span><span>ПОВТОР.</span><span>ПАУЗА</span><span>ВИДЕО</span><span></span></div>' +
         dayRows.map((r, i) => '<div class="tr"><span class="accent strong">' + (i + 1) + '</span>' +
-          '<input aria-label="Вежба" value="' + esc(r[0]) + '" data-input="cell" data-val="' + i + ':0">' +
-          '<input aria-label="Серии" value="' + esc(r[1]) + '" data-input="cell" data-val="' + i + ':1">' +
-          '<input aria-label="Повторувања" value="' + esc(r[2]) + '" data-input="cell" data-val="' + i + ':2">' +
-          '<input aria-label="Пауза" value="' + esc(r[3]) + '" data-input="cell" data-val="' + i + ':3">' +
+          '<input aria-label="Вежба" placeholder="Вежба" value="' + esc(r[0]) + '" data-input="cell" data-val="' + i + ':0">' +
+          '<input aria-label="Серии" placeholder="Серии" value="' + esc(r[1]) + '" data-input="cell" data-val="' + i + ':1">' +
+          '<input aria-label="Повторувања" placeholder="Повтор." value="' + esc(r[2]) + '" data-input="cell" data-val="' + i + ':2">' +
+          '<input aria-label="Пауза" placeholder="Пауза" value="' + esc(r[3]) + '" data-input="cell" data-val="' + i + ':3">' +
           '<button type="button" class="link small ' + (r[4] ? 'accent' : 'muted') + '" data-act="vid" data-val="' + i + '">' + (r[4] ? '▶ Прикачено' : '+ Снимка') + '</button>' +
           '<button type="button" class="link muted" data-act="delRow" data-val="' + i + '" aria-label="Избриши ред">✕</button></div>').join('') +
         '<div class="pad"><button type="button" class="link accent strong" data-act="addRow">+ Додади вежба</button></div></div>' +
@@ -228,6 +236,7 @@ export const plans = {
     sendPlan(form) {
       const cid = form.c.value; const c = clientInfo(cid);
       const count = currentRows().reduce((n, d) => n + d.length, 0);
+      store.markStep('plan');
       store.addMessage(cid, tid(), { from: tid(), kind: 'plan', text: planState.name + ' · ' + currentRows().length + ' дена, ' + count + ' вежби' });
       toast('Планот е испратен на ' + c.name + '.');
     },
@@ -264,6 +273,7 @@ export const profile = {
     saveProfile(form) {
       const num = (v) => { const n = parseInt(String(v).replace(/\D/g, ''), 10); return isNaN(n) ? 0 : n; };
       const [city, ...area] = form.area.value.split(',');
+      store.markStep('profile');
       setOverride({ name: form.name.value, bio: form.bio.value, type: form.type.value, pricesPublic: form.pricesPublic.checked, price: num(form.price.value), onlinePrice: num(form.onlinePrice.value), city: city.trim() || 'Скопје', area: area.join(',').trim() });
       toast('Профилот е зачуван. Клиентите веќе ги гледаат промените.');
     },

@@ -2,6 +2,7 @@
 import * as store from '../store.js';
 import { SPORTS, CITIES, PARTNERS, CHALLENGES, LEADERBOARD_OTHERS } from '../data.js';
 import { esc, initials, icon, publicLayout, appLayout, chipRow, photo, stars, priceLabel, typeLabel, toast, modal, closeModal } from '../ui.js';
+import { reviewsBlock, reviewActions, postCard, postActions } from './social.js';
 
 // ---------- Почетна / пребарување ----------
 const search = { sport: 'Сите', city: 'Сите', type: 'Сите', q: '' };
@@ -110,6 +111,7 @@ export const trainerProfile = {
     const cid = s.client.id;
     const linked = s.role === 'client' && store.isLinked(cid, t.id);
     const pending = s.role === 'client' && store.pendingRequestFrom(cid, t.id);
+    const posts = store.postsBy(t.id);
     let cta;
     if (s.role === 'trainer') cta = '<div class="note">Ова е приказ за клиентите.</div>';
     else if (linked) cta = '<a class="btn btn-accent btn-lg grow" href="#/c/messages/' + t.id + '">ОТВОРИ ЧЕТ</a><a class="btn btn-ghost btn-icon" href="#/c/booking?t=' + t.id + '" aria-label="Закажи термин">📅</a>';
@@ -137,13 +139,15 @@ export const trainerProfile = {
         '<div class="card"><h2 class="eyebrow muted">ЗА МЕНЕ</h2><p>' + esc(t.bio) + '</p><div class="row gap-s wrap">' + t.certs.map((c) => '<span class="tag tag-outline">' + esc(c) + '</span>').join('') + '</div></div>' +
         '<div class="grid-2"><div class="card"><h2 class="eyebrow muted">УСЛУГИ</h2>' + services.map(([a, b]) => '<div class="kv"><span>' + a + '</span><span class="strong">' + b + '</span></div>').join('') + '</div>' +
           '<div class="card"><h2 class="eyebrow muted">РЕЗУЛТАТИ НА КЛИЕНТИ</h2><div class="grid-3 gap-s">' + [1, 2, 3].map(() => photo('ПРЕД/ПОТОА', 'person', 'photo-sm')).join('') + '</div><p class="muted small">Објавено со дозвола од клиентите.</p></div></div>' +
-        '<div class="card"><h2 class="eyebrow muted">ОЦЕНКИ</h2><div class="grid-2">' +
-          '<div><div class="strong"><span class="accent">★★★★★</span> Ана К.</div><p class="muted">Прв пат тренирам редовно повеќе од 2 месеци. Препорака!</p></div>' +
-          '<div><div class="strong"><span class="accent">★★★★★</span> Никола Д.</div><p class="muted">Многу детални корекции на техниката преку снимки.</p></div></div></div>' +
+        reviewsBlock(t.id, linked) +
+        (posts.length ? '<div class="stack-s"><h2 class="eyebrow muted">ПОСЛЕДНИ ОБЈАВИ</h2>' + posts.slice(0, 2).map((po) => postCard(po)).join('') + '</div>' : '') +
       '</section></div>';
     return s.role === 'client' ? appLayout('client', 'find', content) : publicLayout('home', content);
   },
+  mount() { if (store.get().role !== 'trainer') store.markStep('find'); },
   actions: {
+    ...reviewActions,
+    ...postActions,
     request(el) {
       const s = store.get();
       if (s.role !== 'client') { location.hash = '#/signup?next=' + encodeURIComponent('/trainer/' + el.dataset.val); return; }
@@ -158,9 +162,30 @@ export const trainerProfile = {
       const f = new FormData(form);
       const s = store.get();
       const tid = f.get('tid');
-      store.set((st) => ({ ...st, requests: [...st.requests, { id: store.uid('r'), clientId: s.client.id, clientName: shortName(s.client.name), trainerId: tid, goal: f.get('goal') + ' · ' + f.get('type').toLowerCase(), msg: f.get('msg'), status: 'pending' }] }));
+      const rid = store.uid('r');
+      const t = store.trainer(tid);
+      store.markStep('request');
+      store.notify(tid, 'Ново барање од ' + shortName(s.client.name), '#/t/clients?tab=req');
+      store.set((st) => ({ ...st, requests: [...st.requests, { id: rid, clientId: s.client.id, clientName: shortName(s.client.name), trainerId: tid, goal: f.get('goal') + ' · ' + f.get('type').toLowerCase(), msg: f.get('msg'), status: 'pending' }] }));
       closeModal();
-      toast('Барањето е испратено. Ќе добиеш известување кога тренерот ќе одговори.');
+      if (tid === s.trainerId) {
+        // демо тренерот: барањето го прифаќаш ти, од другата страна
+        toast('Испратено! Префрли се во улога „Тренер“ (долу десно) за да го видиш барањето од другата страна.');
+      } else {
+        toast('Барањето е испратено. Ќе добиеш известување кога тренерот ќе одговори.');
+        // другите тренери во демото одговараат сами по неколку секунди
+        setTimeout(() => {
+          const cur = store.get().requests.find((r) => r.id === rid);
+          if (!cur || cur.status !== 'pending') return;
+          store.notify(s.client.id, t.name + ' го прифати твоето барање', '#/c/messages/' + tid);
+          const key = store.threadKey(s.client.id, tid);
+          store.set((st) => ({ ...st,
+            requests: st.requests.map((r) => (r.id === rid ? { ...r, status: 'accepted' } : r)),
+            links: [...st.links, { clientId: s.client.id, trainerId: tid, since: 'нов' }],
+            threads: { ...st.threads, [key]: [...(st.threads[key] || []), { from: tid, text: 'Здраво! Го прифатив барањето. Кога ти одговара бесплатен прв разговор?', at: Date.now() }] } }));
+          toast(t.name + ' го прифати твоето барање!');
+        }, 5000);
+      }
     },
     waitlist() { toast('Те ставивме на листата на чекање. Ќе те известиме кога ќе се ослободи место.'); },
     video() { toast('Во вистинската апликација тука се пушта видео презентацијата на тренерот.'); },

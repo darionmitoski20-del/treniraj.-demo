@@ -1,5 +1,5 @@
 // Помошни функции за HTML и заеднички делови од изгледот.
-import { get } from './store.js';
+import { get, unreadCount } from './store.js';
 
 export function esc(v) {
   return String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -25,6 +25,18 @@ export function logo() {
 }
 
 export function stars(r) { return '★ ' + Number(r).toFixed(1); }
+
+export function starRow(n) { return '<span class="accent" aria-label="' + n + ' од 5">' + '★'.repeat(n) + '<span class="dimstar">' + '★'.repeat(5 - n) + '</span></span>'; }
+
+export function ago(at) {
+  const m = Math.round((Date.now() - at) / 60000);
+  if (m < 1) return 'сега';
+  if (m < 60) return 'пред ' + m + ' мин';
+  const h = Math.round(m / 60);
+  if (h < 24) return 'пред ' + h + ' ч';
+  const d = Math.round(h / 24);
+  return d === 1 ? 'вчера' : 'пред ' + d + ' дена';
+}
 
 export function priceLabel(t) {
   if (!t.pricesPublic) return 'Цена на барање';
@@ -55,25 +67,37 @@ export function publicLayout(active, content) {
 
 const CLIENT_NAV = [
   ['#/c/home', 'Мој преглед', 'home'], ['#/', 'Најди тренер', 'find'], ['#/c/messages', 'Пораки', 'messages'],
-  ['#/c/booking', 'Термини', 'booking'], ['#/c/progress', 'Напредок', 'progress'], ['#/c/challenges', 'Предизвици', 'challenges'],
-  ['#/c/partners', 'Партнери', 'partners'], ['#/c/settings', 'Мој профил', 'settings'],
+  ['#/c/booking', 'Термини', 'booking'], ['#/c/progress', 'Напредок', 'progress'], ['#/c/feed', 'Објави', 'feed'],
+  ['#/c/challenges', 'Предизвици', 'challenges'], ['#/c/partners', 'Партнери', 'partners'],
+  ['#/c/notifications', 'Известувања', 'notif'], ['#/c/settings', 'Мој профил', 'settings'],
 ];
 const TRAINER_NAV = [
   ['#/t/home', 'Преглед', 'home'], ['#/t/clients', 'Клиенти', 'clients'], ['#/t/messages', 'Пораки', 'messages'],
-  ['#/t/calendar', 'Календар', 'calendar'], ['#/t/plans', 'Планови и шаблони', 'plans'], ['#/t/profile', 'Мој профил', 'profile'],
+  ['#/t/calendar', 'Календар', 'calendar'], ['#/t/plans', 'Планови и шаблони', 'plans'], ['#/t/posts', 'Објави', 'posts'],
+  ['#/t/notifications', 'Известувања', 'notif'], ['#/t/profile', 'Мој профил', 'profile'],
 ];
+
+export function bell(role, n) {
+  return '<a class="bell" href="#/' + (role === 'trainer' ? 't' : 'c') + '/notifications" aria-label="Известувања' + (n ? ', ' + n + ' нови' : '') + '">' +
+    '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10 21a2 2 0 0 0 4 0"/></svg>' +
+    (n ? '<span class="badge">' + n + '</span>' : '') + '</a>';
+}
 
 // Изглед за најавен корисник: странично мени (на мобилен — долу)
 export function appLayout(role, active, content, opts = {}) {
   const nav = role === 'trainer' ? TRAINER_NAV : CLIENT_NAV;
   const s = get();
-  const items = nav.map(([href, label, key]) => '<a href="' + href + '" class="side-link' + (active === key ? ' on' : '') + '">' + label + '</a>').join('');
+  const unread = unreadCount();
+  const items = nav.map(([href, label, key]) => '<a href="' + href + '" class="side-link' + (active === key ? ' on' : '') + '">' + label +
+    (key === 'notif' && unread ? '<span class="badge">' + unread + '</span>' : '') + '</a>').join('');
   const extra = role === 'trainer'
     ? '<div class="side-card"><div class="eyebrow accent">ОСНОВАЧ · −50%</div><div class="muted small">Претплата: 500 ден. / месец</div></div>'
     : (s.client.premium
       ? '<div class="side-card"><div class="eyebrow accent">ПРЕМИУМ АКТИВЕН</div><div class="muted small">Пробен период: 14 дена</div></div>'
       : '<a class="side-card light" href="#/c/settings"><div class="eyebrow">ПРЕМИУМ</div><div class="small strong">Попусти кај тренери и напредна аналитика</div></a>');
-  return '<div class="app' + (opts.full ? ' app-full' : '') + '"><aside class="side">' + logo() + '<nav class="side-nav">' + items + '</nav>' + extra + '</aside>' +
+  return '<div class="app' + (opts.full ? ' app-full' : '') + '"><aside class="side"><div class="side-top">' + logo() + bell(role, unread) + '</div><nav class="side-nav" aria-label="Мени">' + items + '</nav>' + extra + '</aside>' +
+    '<div class="m-top">' + logo() + '<span class="grow"></span><button type="button" class="m-demo" data-act="demoMenu" aria-label="Демо: смени улога">ДЕМО · ' + (role === 'trainer' ? 'Тренер' : 'Клиент') + ' ▾</button>' +
+    '<button type="button" class="m-demo' + (s.guide.open ? ' on' : '') + '" data-act="guideToggle">Водич</button>' + bell(role, unread) + '</div>' +
     '<main class="app-main">' + content + '</main></div>';
 }
 

@@ -7,6 +7,10 @@ const AUTO = [
   'Не заборавај да внесеш напредок оваа недела.', 'Утре во исто време?',
 ];
 
+const AUTO_CLIENT = [
+  'Фала! Ќе го пробам уште денес.', 'Супер, се гледаме на тренинг 💪', 'Може ли малку полесно за почеток?', 'Јасно, ќе ти пратам снимка по тренинг.', 'Одлично, фала за советот!',
+];
+
 const MONTHS = ['јан', 'фев', 'мар', 'апр', 'мај', 'јун', 'јул', 'авг', 'сеп', 'окт', 'ное', 'дек'];
 export function timeLabel(at) {
   const d = new Date(at), now = new Date();
@@ -43,7 +47,8 @@ export function send(clientId, trainerId, fromId, text, autoFrom) {
   store.addMessage(clientId, trainerId, { from: fromId, text: t });
   if (autoFrom) {
     setTimeout(() => {
-      store.addMessage(clientId, trainerId, { from: autoFrom, text: AUTO[Math.floor(Math.random() * AUTO.length)] });
+      const pool = autoFrom === clientId ? AUTO_CLIENT : AUTO;
+      store.addMessage(clientId, trainerId, { from: autoFrom, text: pool[Math.floor(Math.random() * pool.length)] });
     }, 1400);
   }
 }

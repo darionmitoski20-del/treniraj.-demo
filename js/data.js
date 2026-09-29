@@ -57,6 +57,25 @@ export const DEMO_REQUESTS = [
   { id: 'r2', clientId: 'c6', clientName: 'Лука Б.', trainerId: 't1', goal: 'Кондиција · онлајн', status: 'pending' },
 ];
 
+// Примерни оценки (seed: не се бројат во просекот, тој е веќе во податоците на тренерот)
+export const SEED_REVIEWS = [
+  { id: 'rv1', trainerId: 't1', clientId: 'x1', clientName: 'Сара А.', stars: 5, text: 'Прв пат тренирам редовно повеќе од 2 месеци. Препорака!', at: Date.now() - 9 * 864e5, seed: true },
+  { id: 'rv2', trainerId: 't1', clientId: 'c2', clientName: 'Никола Д.', stars: 5, text: 'Многу детални корекции на техниката преку снимки.', at: Date.now() - 20 * 864e5, seed: true },
+  { id: 'rv3', trainerId: 't1', clientId: 'x2', clientName: 'Мила П.', stars: 4, text: 'Одлични планови, понекогаш е тешко да се најде термин.', at: Date.now() - 34 * 864e5, seed: true },
+  { id: 'rv4', trainerId: 't3', clientId: 'x3', clientName: 'Горан В.', stars: 5, text: 'Исхрана што можам да ја држам. −6 кг за 3 месеци.', at: Date.now() - 12 * 864e5, seed: true },
+  { id: 'rv5', trainerId: 't2', clientId: 'x4', clientName: 'Петар Л.', stars: 5, text: 'Бекхендот ми е конечно стабилен.', at: Date.now() - 15 * 864e5, seed: true },
+  { id: 'rv6', trainerId: 't4', clientId: 'x5', clientName: 'Ема Т.', stars: 5, text: 'Сериозен и мотивирачки тренер.', at: Date.now() - 6 * 864e5, seed: true },
+];
+
+// Примерни објави во фидот
+export const SEED_POSTS = [
+  { id: 'po1', trainerId: 't3', tag: 'Совет', daysAgo: -0.2, likes: ['x1', 'x2', 'x3'], text: 'Појади во рок од 1 час по будење. Не мора голем оброк — јогурт и овошје се сосема доволни за почеток.' },
+  { id: 'po2', trainerId: 't1', tag: 'Предизвик', daysAgo: -1, likes: ['x1', 'x4', 'x5', 'x6', 'c2'], text: 'Почнува „30 дена движење“! Секој ден 30 минути активност, прошетката се брои. Приклучи се од делот Предизвици.' },
+  { id: 'po3', trainerId: 't7', tag: 'Совет', daysAgo: -2, likes: ['x2'], text: '80% од трчањата треба да ти бидат лесни — со темпо на кое можеш да зборуваш. Брзината доаѓа од другите 20%.' },
+  { id: 'po4', trainerId: 't2', tag: 'Новост', daysAgo: -3, likes: ['x3', 'x4'], text: 'Слободни се 3 термини во сабота наутро на теренот во Битола. Прв час бесплатно за нови клиенти.' },
+  { id: 'po5', trainerId: 't6', tag: 'Совет', daysAgo: -4, likes: ['x1', 'x5'], text: 'Ако седиш цел ден: на секој час стани и направи 5 длабоки вдишувања со истегнување на рацете нагоре.' },
+];
+
 export const TEMPLATES = [
   { id: 'tpl1', name: 'Сила — почетници', meta: '4 недели · 3 дена неделно', days: [
     [ ['Чучањ со шипка', 4, '8', '2 мин'], ['Бенч прес', 4, '8', '2 мин'], ['Веслање со дамбел', 3, '10', '90 сек'] ],

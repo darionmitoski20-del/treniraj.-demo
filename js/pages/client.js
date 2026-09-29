@@ -4,6 +4,7 @@ import { CHALLENGES, LEADERBOARD_OTHERS, DAY_NAMES, DAY_SHORT, SLOT_TIMES, PARTN
 import { esc, initials, appLayout, toast, modal, closeModal, lineChart, chipRow, stars } from '../ui.js';
 import { chatBubbles, composer, send, attachVideo, scrollChat } from './chat.js';
 import { partnersContent, partnerActions, shortName } from './public.js';
+import { reviewActions } from './social.js';
 
 const me = () => store.get().client;
 
@@ -62,7 +63,7 @@ export const messages = {
     const pr = s.progress;
     const content = '<div class="chat-layout"><section class="threads"><h1 class="h2 upper">Пораки</h1>' + list + '</section>' +
       '<section class="chat"><header class="chat-head"><div class="grow"><div class="strong">' + esc(t.name) + '</div><div class="accent small strong">' + (next ? 'Термин: ' + DAY_NAMES[next.day] + ', ' + next.time : 'Нема закажан термин') + '</div></div>' +
-        '<a class="btn btn-ghost btn-sm" href="#/c/booking?t=' + t.id + '">Закажи</a><button type="button" class="btn btn-accent btn-sm" data-act="videoCall">Видео повик</button></header>' +
+        '<a class="btn btn-ghost btn-sm" href="#/c/booking?t=' + t.id + '">Закажи</a><button type="button" class="btn btn-ghost btn-sm hide-m" data-act="reviewOpen" data-val="' + t.id + '">★ Оцени</button><button type="button" class="btn btn-accent btn-sm" data-act="videoCall">Видео повик</button></header>' +
         '<div class="chat-body">' + chatBubbles(store.thread(c.id, t.id), c.id) + '</div>' + composer('sendMsg', 'attach') + '</section>' +
       '<aside class="chat-side"><h2 class="h3 upper">Мој напредок</h2><div class="card"><div class="eyebrow muted">ТЕЖИНА</div><div class="display-xs">' + pr[pr.length - 1].weight.toFixed(1) + ' кг</div>' + lineChart(pr.map((x) => x.weight), { w: 280, h: 90 }) + '</div>' +
         '<div class="card"><div class="strong small">Коментар од тренерот</div><p class="muted small">' + esc(s.trainerComment) + '</p></div><a class="btn btn-accent" href="#/c/progress">+ ВНЕСИ НАПРЕДОК</a></aside></div>';
@@ -76,6 +77,7 @@ export const messages = {
     },
     attach(el, ev, cur) { const c = me(); attachVideo(c.id, activeTid(cur), c.id); },
     videoCall() { toast('Во вистинската апликација тука се отвора видео повик.'); },
+    ...reviewActions,
   },
 };
 function activeTid(cur) {
@@ -124,6 +126,8 @@ export const booking = {
     bType(el) { book.type = el.dataset.val; store.refresh(); },
     bConfirm() {
       const c = me();
+      store.markStep('book');
+      store.notify(book.tid, shortName(c.name) + ' закажа термин: ' + DAY_NAMES[book.day] + ', ' + book.slot, '#/t/calendar');
       store.set((s) => ({ ...s, bookings: [...s.bookings, { id: store.uid('b'), clientId: c.id, clientName: shortName(c.name), trainerId: book.tid, day: book.day, time: book.slot, type: book.type }] }));
       toast('Терминот е закажан: ' + DAY_NAMES[book.day] + ', ' + book.slot + '. Ќе добиеш потсетник.');
       book.slot = null;
@@ -160,6 +164,8 @@ export const progress = {
     photoNote() { toast('Во вистинската апликација тука прикачуваш фотографија.'); },
     addProgress(form) {
       const num = (v, d) => { const n = parseFloat(String(v).replace(',', '.')); return isNaN(n) ? d : n; };
+      store.markStep('progress');
+      if (form.share.checked) store.clientTrainers(me().id).forEach((t) => store.notify(t.id, shortName(me().name) + ' внесе нов напредок', '#/t/clients'));
       store.set((s) => { const last = s.progress[s.progress.length - 1];
         return { ...s, progress: [...s.progress, { week: last.week + 1, weight: num(form.weight.value, last.weight), waist: num(form.waist.value, last.waist), workouts: Math.round(num(form.workouts.value, last.workouts)) }] }; });
       toast('Напредокот е зачуван' + (form.share.checked ? ' и споделен со тренерите.' : '.'));
