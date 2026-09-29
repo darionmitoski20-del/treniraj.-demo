@@ -1,7 +1,7 @@
 // Страни за најавен тренер.
 import * as store from '../store.js';
 import { DEMO_CLIENTS, TEMPLATES, DAY_SHORT, DAY_NAMES, SPORTS, SLOT_TIMES, DEMO_PROGRESS } from '../data.js';
-import { esc, initials, appLayout, toast, modal, closeModal, chipRow, lineChart } from '../ui.js';
+import { esc, initials, appLayout, toast, modal, closeModal, chipRow, lineChart, den, greeting } from '../ui.js';
 import { chatBubbles, composer, send, attachVideo, scrollChat } from './chat.js';
 import { shortName } from './public.js';
 import { recipeActions } from './recipes.js';
@@ -50,7 +50,7 @@ const reqActions = { accept(el) { accept(el.dataset.val); }, decline(el) { decli
 
 function requestRows(list) {
   if (!list.length) return '<div class="muted small pad">Нема нови барања.</div>';
-  return list.map((r) => '<div class="list-row"><span class="avatar">' + initials(r.clientName) + '</span><span class="grow"><span class="strong">' + esc(r.clientName) + '</span><span class="muted small">' + esc(r.goal) + (r.msg ? ' · „' + esc(r.msg) + '“' : '') + '</span></span>' +
+  return list.map((r) => '<div class="list-row req"><span class="avatar">' + initials(r.clientName) + '</span><span class="grow"><span class="strong">' + esc(r.clientName) + '</span><span class="muted small">' + esc(r.goal) + (r.msg ? ' · „' + esc(r.msg) + '“' : '') + '</span></span>' +
     '<button type="button" class="btn btn-ghost btn-sm" data-act="decline" data-val="' + r.id + '">Одбиј</button><button type="button" class="btn btn-light btn-sm" data-act="accept" data-val="' + r.id + '">Прифати</button></div>').join('');
 }
 
@@ -61,20 +61,26 @@ export const home = {
     const s = store.get(); const t = store.trainer(tid());
     const clients = myClients(); const reqs = pendingRequests();
     const week = s.bookings.filter((b) => b.trainerId === t.id);
-    const today = new Date().getDay(); const todayIdx = (today + 6) % 7;
+    const todayIdx = (new Date().getDay() + 6) % 7;
     const todays = week.filter((b) => b.day === todayIdx).sort((a, b) => a.time.localeCompare(b.time));
-    const earnings = week.reduce((sum, b) => sum + (b.type === 'Во живо' ? t.price : Math.round((t.onlinePrice || 1500) / 4)), 0) * 4;
-    const reached = clients.filter((c) => c.progress >= 80).length + 12;
-    const content = '<div class="page-head"><h1 class="display-s">Добро утро, ' + esc(t.name.split(' ')[0]) + '</h1>' +
+    const earnings = store.monthEarnings(t.id);
+    const unpaid = store.unpaidTotal(t.id);
+    const expiring = store.expiringPackages(t.id);
+    const reached = t.isNew ? 0 : clients.filter((c) => c.progress >= 80).length + 12;
+    const goalCard = t.isNew
+      ? '<div class="card light"><div class="eyebrow">СЛЕДНО ДОСТИГНУВАЊЕ</div><div class="h3 upper">Прва ѕвезда</div><div class="bar"><div style="width:0%"></div></div><div class="small strong">Добиј ја првата оценка од клиент · награда: беџ на профилот</div></div>'
+      : '<div class="card light"><div class="eyebrow">СЛЕДНО ДОСТИГНУВАЊЕ</div><div class="h3 upper">Мајстор за резултати</div><div class="bar"><div style="width:' + Math.round((reached / 20) * 100) + '%"></div></div><div class="small strong">' + reached + ' од 20 клиенти ја постигнале целта · награда: 30 дена истакнување</div></div>';
+    const expBlock = expiring.length ? '<div class="card"><h2 class="eyebrow muted">ПАКЕТИ ШТО ИСТЕКУВААТ</h2>' + expiring.map((pk) => { const left = pk.total - pk.used;
+      return '<a class="list-row" href="#/t/clients/' + pk.clientId + '"><span class="avatar">' + initials(store.clientName(pk.clientId)) + '</span><span class="grow"><span class="strong">' + esc(store.clientName(pk.clientId)) + '</span><span class="muted small">' + (left ? 'остануваат ' + left + ' од ' + pk.total : 'искористен ' + pk.total + '/' + pk.total) + '</span></span><span class="accent strong small">Обнови</span></a>'; }).join('') + '</div>' : '';
+    const content = '<div class="page-head"><h1 class="display-s">' + greeting() + ', ' + esc(t.name.split(' ')[0]) + '</h1>' +
       '<label class="pill"><input type="checkbox" data-change="accepting"' + (t.accepting ? ' checked' : '') + '> Примам нови клиенти</label></div>' +
-      '<div class="grid-4"><div class="card accent-card"><div class="eyebrow">ЗАРАБОТКА / МЕСЕЦ</div><div class="display-xs">~' + earnings.toLocaleString('mk-MK') + ' ден.</div><div class="small strong">проценка од термините</div></div>' +
+      '<div class="grid-4"><div class="card accent-card"><div class="eyebrow">ЗАРАБОТКА / 30 ДЕНА</div><div class="display-xs">' + den(earnings) + ' ден.</div><div class="small strong">' + (unpaid ? den(unpaid) + ' ден. чекаат плаќање' : 'нема неплатени пакети') + '</div></div>' +
         '<div class="card"><div class="eyebrow muted">АКТИВНИ КЛИЕНТИ</div><div class="display-xs">' + clients.length + '</div><div class="muted small">+ ' + reqs.length + ' нови барања</div></div>' +
         '<div class="card"><div class="eyebrow muted">ТЕРМИНИ</div><div class="display-xs">' + week.length + '</div><div class="muted small">оваа недела</div></div>' +
-        '<div class="card"><div class="eyebrow muted">ПРЕГЛЕДИ</div><div class="display-xs">312</div><div class="muted small">на профилот овој месец</div></div></div>' +
-      '<div class="row gap stack-m"><section class="card grow"><h2 class="eyebrow muted">НОВИ БАРАЊА</h2>' + requestRows(reqs) + '</section>' +
-      '<section class="stack w-320"><div class="card"><h2 class="eyebrow muted">ДЕНЕС</h2>' + (todays.length ? todays.map((b) => '<div class="kv"><span class="accent strong">' + b.time + '</span><span>' + esc(b.clientName) + ' · ' + esc(b.type.toLowerCase()) + '</span></div>').join('') : '<div class="muted small">Немаш термини денес.</div>') + '<a class="link accent small strong" href="#/t/calendar">Календар →</a></div>' +
-        '<div class="card light"><div class="eyebrow">СЛЕДНО ДОСТИГНУВАЊЕ</div><div class="h3 upper">Мајстор за резултати</div><div class="bar"><div style="width:' + Math.round((reached / 20) * 100) + '%"></div></div><div class="small strong">' + reached + ' од 20 клиенти ја постигнале целта · награда: 30 дена истакнување</div></div>' +
-        '<div class="card row gap"><span class="display-xs accent">#1</span><span class="small"><span class="strong">Месечна ранг листа</span><br><span class="muted">Тренер на месецот</span></span></div></section></div>';
+        '<div class="card"><div class="eyebrow muted">ПРЕГЛЕДИ</div><div class="display-xs">' + (t.isNew ? 0 : 312) + '</div><div class="muted small">на профилот овој месец</div></div></div>' +
+      '<div class="row gap stack-m"><section class="card grow"><h2 class="eyebrow muted">НОВИ БАРАЊА</h2>' + requestRows(reqs) + (!clients.length && !reqs.length ? '<div class="muted small pad">Сподели го линкот до профилот во „Клиенти → Покани клиент“.</div>' : '') + '</section>' +
+      '<section class="stack w-320">' + expBlock + '<div class="card"><h2 class="eyebrow muted">ДЕНЕС</h2>' + (todays.length ? todays.map((b) => '<div class="kv"><span class="accent strong">' + b.time + '</span><span>' + esc(b.clientName) + ' · ' + esc(b.type.toLowerCase()) + '</span></div>').join('') : '<div class="muted small">Немаш термини денес.</div>') + '<a class="link accent small strong" href="#/t/calendar">Календар →</a></div>' +
+        goalCard + (t.isNew ? '' : '<div class="card row gap"><span class="display-xs accent">#1</span><span class="small"><span class="strong">Месечна ранг листа</span><br><span class="muted">Тренер на месецот</span></span></div>') + '</section></div>';
     return appLayout('trainer', 'home', content);
   },
   actions: { ...reqActions, accepting(el) { setOverride({ accepting: el.checked }); toast(el.checked ? 'Профилот прима нови клиенти.' : 'Профилот е означен „Не прима нови“.'); } },
@@ -82,6 +88,13 @@ export const home = {
 
 function setOverride(patch) {
   store.set((s) => ({ ...s, trainerOverrides: { ...s.trainerOverrides, [s.trainerId]: { ...(s.trainerOverrides[s.trainerId] || {}), ...patch } } }));
+}
+
+function pkgLine(cid) {
+  const pk = store.packageFor(cid, tid());
+  if (!pk) return 'без пакет';
+  const left = pk.total - pk.used;
+  return 'пакет ' + pk.used + '/' + pk.total + (left <= 2 ? ' · обнови' : '') + (pk.paid ? '' : ' · неплатен');
 }
 
 // ---------- Клиенти ----------
@@ -98,7 +111,7 @@ export const clients = {
     let body;
     if (cState.tab === 'Активни') {
       body = '<div class="table"><div class="tr th"><span>КЛИЕНТ</span><span>ЦЕЛ И НАПРЕДОК</span><span>ТИП</span><span>СЛЕДЕН ТЕРМИН</span><span></span></div>' +
-        (list.length ? list.map((c) => '<div class="tr"><span class="row gap-s"><span class="avatar">' + initials(c.name) + '</span><span><span class="strong">' + esc(c.name) + '</span><br><span class="muted small">од ' + esc(c.since) + '</span></span></span>' +
+        (list.length ? list.map((c) => '<div class="tr"><span class="row gap-s"><span class="avatar">' + initials(c.name) + '</span><span><span class="strong">' + esc(c.name) + '</span><br><span class="muted small">' + pkgLine(c.id) + '</span></span></span>' +
           '<span class="stack-s"><span class="strong small">' + esc(c.goal) + '</span><span class="bar thin"><span style="width:' + c.progress + '%"></span></span></span><span class="muted">' + esc(c.type) + '</span><span class="strong">' + nextFor(c.id) + '</span>' +
           '<a class="btn btn-ghost btn-sm" href="#/t/clients/' + c.id + '">Напредок</a></div>').join('') : '<div class="muted pad">Нема клиенти.</div>') + '</div>';
     } else if (cState.tab === 'Барања') {
@@ -185,10 +198,18 @@ export const calendar = {
     deposit(el) { store.set((s) => ({ ...s, availability: { ...s.availability, deposit: el.checked } })); },
     evOpen(el) {
       const b = store.get().bookings.find((x) => x.id === el.dataset.val);
-      modal('<h2 class="h2">' + esc(b.clientName) + '</h2><p class="muted">' + DAY_NAMES[b.day] + ', ' + b.time + ' · ' + esc(b.type.toLowerCase()) + '</p><div class="row gap"><a class="btn btn-ghost" href="#/t/messages/' + b.clientId + '">Порака</a><button type="button" class="btn btn-danger" data-act="evCancel" data-val="' + b.id + '">Откажи термин</button></div>');
+      modal('<h2 class="h2">' + esc(b.clientName) + '</h2><p class="muted">' + DAY_NAMES[b.day] + ', ' + b.time + ' · ' + esc(b.type.toLowerCase()) + '</p><div class="row gap"><button type="button" class="btn btn-accent" data-act="evDone" data-val="' + b.id + '">Означи како одржан</button><div class="row gap"><a class="btn btn-ghost grow" href="#/t/messages/' + b.clientId + '">Порака</a><button type="button" class="btn btn-danger grow" data-act="evCancel" data-val="' + b.id + '">Откажи термин</button></div>');
+    },
+    evDone(el) {
+      const b = store.get().bookings.find((x) => x.id === el.dataset.val); if (!b) return;
+      store.set((st) => ({ ...st, bookings: st.bookings.filter((x) => x.id !== b.id) }));
+      closeModal();
+      const pk = store.packageFor(b.clientId, tid());
+      if (pk && pk.used < pk.total) usePackage(pk.id); else toast('Терминот е одржан. Клиентот нема активен пакет.');
     },
     evCancel(el) { store.set((s) => ({ ...s, bookings: s.bookings.filter((b) => b.id !== el.dataset.val) })); closeModal(); toast('Терминот е откажан и клиентот е известен.'); },
     addSlot() {
+      if (!myClients().length) { toast('Прво прифати клиент за да му закажеш термин.'); return; }
       const opts = myClients().map((c) => '<option value="' + c.id + '">' + esc(c.name) + '</option>').join('');
       modal('<h2 class="h2">Нов термин</h2><form class="stack" data-submit="saveSlot"><label class="field">Клиент<select name="c">' + opts + '</select></label><div class="grid-2 gap-s"><label class="field">Ден<select name="d">' + DAY_NAMES.slice(0, 6).map((d, i) => '<option value="' + i + '">' + d + '</option>').join('') + '</select></label>' +
         '<label class="field">Час<select name="t">' + SLOT_TIMES.map((t) => '<option>' + t + '</option>').join('') + '</select></label></div><label class="field">Тип<select name="type"><option>Во живо</option><option>Видео повик</option></select></label><button class="btn btn-accent" type="submit">ЗАЧУВАЈ</button></form>');
@@ -243,10 +264,16 @@ export const plans = {
     vid(el) { const r = currentRows()[planState.day][Number(el.dataset.val)]; r[4] = !r[4]; store.refresh(); if (r[4]) toast('Во демото снимката е симулирана.'); },
     saveTpl() { toast('Шаблонот „' + planState.name + '“ е зачуван.'); },
     sendPlan(form) {
-      const cid = form.c.value; const c = clientInfo(cid);
-      const count = currentRows().reduce((n, d) => n + d.length, 0);
+      const cid = form.c.value;
+      if (!cid) { toast('Прво прифати клиент за да му испратиш план.'); return; }
+      const c = clientInfo(cid);
+      const days = currentRows().filter((d) => d.length).map((d) => d.map((r) => [String(r[0]), String(r[1]), String(r[2]), String(r[3]), !!r[4]]));
+      const count = days.reduce((n, d) => n + d.length, 0);
+      if (!count) { toast('Додади барем една вежба.'); return; }
+      const plan = { id: store.uid('pl'), trainerId: tid(), clientId: cid, name: planState.name || 'План', at: Date.now(), days, done: {} };
       store.markStep('plan');
-      store.addMessage(cid, tid(), { from: tid(), kind: 'plan', text: planState.name + ' · ' + currentRows().length + ' дена, ' + count + ' вежби' });
+      store.set((st) => ({ ...st, sentPlans: [plan, ...st.sentPlans] }));
+      store.addMessage(cid, tid(), { from: tid(), kind: 'plan', planId: plan.id, text: plan.name + ' · ' + days.length + ' дена, ' + count + ' вежби' });
       toast('Планот е испратен: ' + c.name);
     },
   },
@@ -301,6 +328,35 @@ function clientProgress(id) {
   return { shared: false, share: {}, data: [] };
 }
 
+// Искористи еден термин од пакетот и извести (потсетник кога истекува)
+function usePackage(id) {
+  const pk = store.get().packages.find((x) => x.id === id);
+  if (!pk || pk.used >= pk.total) return;
+  const used = pk.used + 1; const left = pk.total - used;
+  store.set((st) => ({ ...st, packages: st.packages.map((x) => (x.id === id ? { ...x, used } : x)) }));
+  const trainerName = store.trainer(pk.trainerId).name.split(' ')[0];
+  store.notify(pk.clientId, left > 0 ? trainerName + ': одржан термин. Ти остануваат ' + left + ' од ' + pk.total : 'Го искористи целиот пакет (' + pk.total + ' термини). Договори нов со ' + trainerName, '#/c/home');
+  if (left <= 2) {
+    store.notify(pk.trainerId, 'Пакетот на ' + store.clientName(pk.clientId) + (left ? ' истекува: остануваат ' + left : ' е искористен') + '. Предложи нов.', '#/t/clients/' + pk.clientId);
+    toast(left ? 'Остануваат ' + left + '. Предложи му нов пакет на ' + store.clientName(pk.clientId) + '.' : 'Пакетот е искористен. Предложи нов.');
+  } else toast('Терминот е одбележан: ' + used + '/' + pk.total);
+}
+
+function pkgSection(cid) {
+  const pk = store.packageFor(cid, tid());
+  const plans = store.plansFor(cid, tid());
+  const packageCard = '<section class="card stack-s"><div class="row gap"><h2 class="eyebrow muted grow">ПАКЕТ ТЕРМИНИ</h2><button type="button" class="btn btn-ghost btn-sm" data-act="pkNew" data-val="' + cid + '">+ Нов пакет</button></div>' +
+    (pk ? (function () { const left = pk.total - pk.used; return '<div class="row gap baseline"><span class="display-xs">' + pk.used + ' / ' + pk.total + '</span><span class="muted">' + esc(pk.name) + ' · ' + den(pk.price) + ' ден.</span></div>' +
+      '<div class="bar' + (left <= 2 ? ' warn' : '') + '"><div style="width:' + Math.round((pk.used / pk.total) * 100) + '%"></div></div>' +
+      '<div class="row gap-s wrap"><span class="tag ' + (pk.paid ? 'tag-outline' : 'tag-accent') + '">' + (pk.paid ? 'ПЛАТЕНО ✓' : 'ЧЕКА ПЛАЌАЊЕ') + '</span>' + (left <= 2 ? '<span class="tag tag-accent-outline">' + (left ? 'ОСТАНУВААТ ' + left : 'ИСКОРИСТЕН') + '</span>' : '<span class="muted small">остануваат ' + left + '</span>') + '</div>' +
+      '<div class="row gap-s wrap"><button type="button" class="btn btn-accent btn-sm" data-act="pkUse" data-val="' + pk.id + '"' + (left ? '' : ' disabled') + '>+ Одржан термин</button>' + (pk.paid ? '' : '<button type="button" class="btn btn-ghost btn-sm" data-act="pkPaid" data-val="' + pk.id + '">Означи како платено</button>') + '</div>'; })()
+      : '<p class="muted">Клиентот нема пакет. Направи пакет за да ги следиш термините и плаќањето.</p>') +
+    '<p class="muted small">Плаќањето се договара директно со клиентот; тука само го евидентираш.</p></section>';
+  const planCards = plans.length ? '<section class="card stack-s"><h2 class="eyebrow muted">ИСПРАТЕНИ ПЛАНОВИ</h2>' + plans.map((pl) => { const pg = store.planProgress(pl);
+    return '<a class="list-row" href="#/t/plan/' + pl.id + '"><span class="grow"><span class="strong">' + esc(pl.name) + '</span><span class="muted small">' + pg.done + ' од ' + pg.total + ' вежби одработени</span><span class="bar thin"><span style="width:' + Math.round((pg.done / Math.max(pg.total, 1)) * 100) + '%"></span></span></span><span class="muted">›</span></a>'; }).join('') + '</section>' : '';
+  return packageCard + planCards;
+}
+
 let cMetric = 'weight';
 export const clientDetail = {
   title: 'Напредок на клиент',
@@ -313,7 +369,7 @@ export const clientDetail = {
       '<div><h1 class="display-s">' + esc(c.name) + '</h1><div class="muted small">' + esc(c.type || '') + ' · од ' + esc(c.since || '') + (next ? ' · следен термин ' + DAY_SHORT[next.day] + ' ' + next.time : '') + '</div></div></div></div>' +
       '<div class="row gap-s wrap"><a class="btn btn-ghost btn-sm" href="#/t/messages/' + p.id + '">Порака</a><a class="btn btn-ghost btn-sm" href="#/t/plans?c=' + p.id + '">Прати план</a><a class="btn btn-ghost btn-sm" href="#/t/recipes?c=' + p.id + '">Прати рецепт</a></div>';
     if (!pr.data.length || !pr.shared) {
-      return appLayout('trainer', 'clients', head + '<div class="empty">' + (pr.data.length ? 'Клиентот избрал да не го споделува напредокот.' : 'Клиентот сè уште нема внесено напредок.') + '<br><button type="button" class="btn btn-accent btn-sm" style="margin-top:12px" data-act="askProgress" data-val="' + p.id + '">Замоли го да внесе напредок</button></div>');
+      return appLayout('trainer', 'clients', head + '<div class="booking"><div class="stack grow"><div class="empty">' + (pr.data.length ? 'Клиентот избрал да не го споделува напредокот.' : 'Клиентот сè уште нема внесено напредок.') + '<br><button type="button" class="btn btn-accent btn-sm" style="margin-top:12px" data-act="askProgress" data-val="' + p.id + '">Замоли го да внесе напредок</button></div></div><aside class="stack w-330">' + pkgSection(p.id) + '</aside></div>');
     }
     const data = pr.data;
     const first = data[0], last = data[data.length - 1];
@@ -336,17 +392,41 @@ export const clientDetail = {
         '<section class="card"><h2 class="eyebrow muted">ВНЕСУВАЊА</h2><div class="ptable"><div class="ptr th"><span>НЕДЕЛА</span><span>КИЛАЖА</span><span>СТРУК</span><span>ТРЕНИНЗИ</span></div>' +
           data.slice().reverse().map((x, i, arr) => { const prev = arr[i + 1]; const dw = prev ? x.weight - prev.weight : 0;
             return '<div class="ptr"><span class="strong">Нед ' + x.week + '</span><span>' + x.weight.toFixed(1) + (prev ? ' <span class="' + (dw <= 0 ? 'down' : 'up') + '">' + sign(dw) + '</span>' : '') + '</span><span>' + x.waist + '</span><span>' + x.workouts + '</span></div>'; }).join('') + '</div></section></div>' +
-      '<aside class="stack w-330">' + (info.length ? '<section class="card"><h2 class="eyebrow muted">ЗА КЛИЕНТОТ</h2>' + info.map(([k, v]) => '<div class="kv"><span class="muted">' + k + '</span><span class="strong right">' + v + '</span></div>').join('') + '<p class="muted small">Клиентот одлучува што споделува.</p></section>' : '') +
+      '<aside class="stack w-330">' + pkgSection(p.id) + (info.length ? '<section class="card"><h2 class="eyebrow muted">ЗА КЛИЕНТОТ</h2>' + info.map(([k, v]) => '<div class="kv"><span class="muted">' + k + '</span><span class="strong right">' + v + '</span></div>').join('') + '<p class="muted small">Клиентот одлучува што споделува.</p></section>' : '') +
         '<form class="card stack-s" data-submit="saveComment"><input type="hidden" name="cid" value="' + p.id + '"><label class="field">Коментар за напредокот<textarea name="text" rows="4" placeholder="Што оди добро, што да се смени…">' + esc(pr.comment || '') + '</textarea></label><button type="submit" class="btn btn-accent">ИСПРАТИ КОМЕНТАР</button><p class="muted small">Клиентот го гледа коментарот во „Напредок“ и добива известување.</p></form></aside></div>';
     return appLayout('trainer', 'clients', content);
   },
   actions: {
     cMetric(el) { cMetric = el.dataset.val; store.refresh(); },
+    pkUse(el) { usePackage(el.dataset.val); },
+    pkPaid(el) {
+      const id = el.dataset.val; const pk = store.get().packages.find((x) => x.id === id);
+      store.set((st) => ({ ...st, packages: st.packages.map((x) => (x.id === id ? { ...x, paid: true } : x)) }));
+      store.notify(pk.clientId, 'Плаќањето за пакетот „' + pk.name + '“ е евидентирано', '#/c/home');
+      toast('Означено како платено: ' + den(pk.price) + ' ден.');
+    },
+    pkNew(el) {
+      const cid = el.dataset.val; const t = store.trainer(tid());
+      const per = t.price || Math.round((t.onlinePrice || 4000) / 4) || 900;
+      modal('<h2 class="h2">Нов пакет за ' + esc(store.clientName(cid)) + '</h2><form class="stack" data-submit="pkSave"><input type="hidden" name="cid" value="' + cid + '">' +
+        '<label class="field">Број термини<select name="n" data-change="pkCount"><option value="4">4 тренинзи</option><option value="8">8 тренинзи</option><option value="12" selected>12 тренинзи</option><option value="20">20 тренинзи</option></select></label>' +
+        '<label class="field">Цена (ден.)<input id="pk-price" name="price" inputmode="numeric" value="' + (per * 12) + '" data-per="' + per + '"></label>' +
+        '<label class="check"><input type="checkbox" name="paid"> Веќе е платено</label>' +
+        '<p class="muted small">Плаќањето се договара директно со клиентот; тука само го евидентираш.</p><button type="submit" class="btn btn-accent">НАПРАВИ ПАКЕТ</button></form>');
+    },
+    pkCount(el) { const inp = document.getElementById('pk-price'); if (inp) inp.value = Number(inp.dataset.per) * Number(el.value); },
+    pkSave(form) {
+      const n = Number(form.n.value); const price = parseInt(String(form.price.value).replace(/\D/g, ''), 10) || 0; const cid = form.cid.value;
+      const pk = { id: store.uid('pk'), trainerId: tid(), clientId: cid, name: n + ' тренинзи', total: n, used: 0, price, paid: form.paid.checked, at: Date.now() };
+      store.set((st) => ({ ...st, packages: [pk, ...st.packages] }));
+      store.notify(cid, store.trainer(tid()).name.split(' ')[0] + ' ти направи нов пакет: ' + pk.name, '#/c/home');
+      closeModal(); toast('Пакетот е направен.');
+    },
     askProgress(el) { store.addMessage(el.dataset.val, tid(), { from: tid(), text: 'Те молам внеси го напредокот за оваа недела (килажа и мерки) за да го следиме заедно.' }); toast('Пораката е испратена.'); },
     saveComment(form) {
       const cid = form.cid.value; const text = form.text.value.trim(); if (!text) return;
       const s = store.get();
-      store.notify(cid, 'Марија остави коментар за твојот напредок', '#/c/progress');
+      store.notify(cid, store.trainer(tid()).name.split(' ')[0] + ' остави коментар за твојот напредок', '#/c/progress');
       if (cid === s.client.id) store.set({ trainerComment: text });
       else store.set((st) => ({ ...st, clientComments: { ...(st.clientComments || {}), [cid]: text } }));
       toast('Коментарот е испратен.');

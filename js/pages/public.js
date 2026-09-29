@@ -24,7 +24,7 @@ export function trainerCard(t, rank) {
       (t.founder ? '<span class="tag tag-light tcard-tag">ОСНОВАЧ</span>' : '') + '</div>' +
     '<div class="tcard-body"><span class="strong">' + esc(t.name) + '</span>' +
     '<span class="muted small">' + esc(t.sports.join(', ')) + ' · ' + esc(t.city) + '</span>' +
-    '<span class="tcard-foot"><span class="strong">' + stars(t.rating) + ' <span class="muted small">(' + t.reviews + ')</span></span><span class="muted small">' + esc(priceLabel(t)) + '</span></span></div></a>';
+    '<span class="tcard-foot"><span class="strong">' + stars(t.rating) + (t.reviews ? ' <span class="muted small">(' + t.reviews + ')</span>' : '') + '</span><span class="muted small">' + esc(priceLabel(t)) + '</span></span></div></a>';
 }
 
 export const home = {
@@ -136,7 +136,7 @@ export const trainerProfile = {
         '<div class="row gap-s wrap">' + t.badges.map((b, i) => '<span class="tag ' + (i === 0 ? 'tag-light' : 'tag-outline') + '">' + esc(b.toUpperCase()) + '</span>').join('') + '</div>' +
         '<h1 class="display-s">' + esc(t.name) + '</h1>' +
         '<div class="muted">' + esc(t.sports.join(', ')) + ' · ' + esc(t.city) + (t.area ? ', ' + esc(t.area) : '') + ' · ' + typeLabel(t.type) + '</div>' +
-        '<div class="stats-3"><div class="stat"><div class="stat-num accent">' + t.rating.toFixed(1) + '</div><div class="muted small">просечна оценка</div></div>' +
+        '<div class="stats-3"><div class="stat"><div class="stat-num accent">' + (t.rating ? t.rating.toFixed(1) : '—') + '</div><div class="muted small">просечна оценка</div></div>' +
           '<div class="stat"><div class="stat-num">' + t.reviews + '</div><div class="muted small">оценки</div></div>' +
           '<div class="stat"><div class="stat-num">' + t.goalsReached + '</div><div class="muted small">постигнати цели</div></div></div>' +
         '<div class="card"><h2 class="eyebrow muted">ЗА МЕНЕ</h2><p>' + esc(t.bio) + '</p><div class="row gap-s wrap">' + t.certs.map((c) => '<span class="tag tag-outline">' + esc(c) + '</span>').join('') + '</div></div>' +
@@ -208,9 +208,9 @@ export const signup = {
       '<section class="split-visual">' + logo2() + '<div class="split-copy"><h1 class="display-s">Првиот чекор<br>е <span class="accent">најтешкиот.</span></h1><p class="lead">Направи профил за 30 секунди.</p></div>' + photo('', 'dumbbell', 'photo-fill') + '</section>' +
       '<section class="split-form"><h2 class="h1">Регистрација</h2><div class="grid-3 gap-s roles">' + roleBtn('client', 'Барам тренер', 'Бесплатно') + roleBtn('trainer', 'Тренер сум', '30 дена бесплатно') + roleBtn('partner', 'Имам бизнис', 'Теретана, продавница…') + '</div>' +
       '<form class="stack" data-submit="doSignup"><input type="hidden" name="role" value="' + role + '"><input type="hidden" name="next" value="' + esc(q.next || '') + '">' +
-      '<label class="field">' + (role === 'partner' ? 'Име на бизнисот' : 'Име и презиме') + '<input name="name" required autocomplete="' + (role === 'partner' ? 'organization' : 'name') + '" value="' + (role === 'trainer' ? 'Марија Стојанова' : role === 'partner' ? 'Фит Зона Аеродром' : 'Ана Костова') + '"></label>' +
-      '<label class="field">Email<input name="email" type="email" inputmode="email" autocomplete="email" required value="' + (role === 'trainer' ? 'marija@primer.mk' : role === 'partner' ? 'info@fitzona.mk' : 'ana@primer.mk') + '"></label>' +
-      '<label class="field">Лозинка<input name="pass" type="password" required value="demo1234"></label>' +
+      '<label class="field">' + (role === 'partner' ? 'Име на бизнисот' : 'Име и презиме') + '<input name="name" required autocomplete="' + (role === 'partner' ? 'organization' : 'name') + '" value="' + (role === 'trainer' ? '' : role === 'partner' ? 'Фит Зона Аеродром' : 'Ана Костова') + '"' + (role === 'trainer' ? ' placeholder="Твоето име и презиме"' : '') + '></label>' +
+      '<label class="field">Email<input name="email" type="email" inputmode="email" autocomplete="email" required value="' + (role === 'trainer' ? '' : role === 'partner' ? 'info@fitzona.mk' : 'ana@primer.mk') + '"' + (role === 'trainer' ? ' placeholder="твој@email.mk"' : '') + '></label>' +
+      '<label class="field">Лозинка<input name="pass" type="password" required autocomplete="new-password" value="demo1234"></label>' +
       '<label class="check"><input type="checkbox" required checked> Потврдувам дека имам 18+ години и ги прифаќам условите</label>' +
       '<button type="submit" class="btn btn-accent btn-lg">' + (role === 'trainer' ? 'ЗАПОЧНИ 30 ДЕНА БЕСПЛАТНО →' : role === 'partner' ? 'НАПРАВИ ПРОФИЛ ЗА БИЗНИСОТ →' : 'ПРОДОЛЖИ →') + '</button></form>' +
       '<p class="muted small center">Демо: полињата се пополнети однапред, само кликни.</p></section></div>';
@@ -229,8 +229,9 @@ export const signup = {
         store.set({ role: 'partner' });
         location.hash = '#/p/profile';
       } else {
-        store.set({ role: 'trainer' });
-        location.hash = '#/t/home';
+        store.createTrainer(f.get('name'));
+        store.set((s) => ({ ...s, guide: { ...s.guide, seen: true, open: true, track: 'trainer' } }));
+        location.hash = '#/t/setup';
       }
       toast('Добредојде во Тренирај!');
     },

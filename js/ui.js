@@ -24,7 +24,12 @@ export function logo() {
   return '<a class="logo" href="#/">ТРЕНИРАЈ<span class="dot">●</span></a>';
 }
 
-export function stars(r) { return '★ ' + Number(r).toFixed(1); }
+export function stars(r) { return r ? '★ ' + Number(r).toFixed(1) : 'Нов'; }
+
+// Цена со точка: 10800 -> 10.800
+export function den(n) { return String(Math.round(n || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, '.'); }
+
+export function greeting() { const h = new Date().getHours(); return h < 12 ? 'Добро утро' : h < 18 ? 'Добар ден' : 'Добра вечер'; }
 
 export function starRow(n) { return '<span class="accent" aria-label="' + n + ' од 5">' + '★'.repeat(n) + '<span class="dimstar">' + '★'.repeat(5 - n) + '</span></span>'; }
 
@@ -103,6 +108,11 @@ const PARTNER_NAV = [
   ['#/p/home', 'Преглед', 'home'], ['#/p/profile', 'Уреди профил', 'edit'], ['#/partner/p1', 'Мој јавен профил', 'view'], ['#/partners', 'Сите партнери', 'all'],
 ];
 
+function trainerOf(s) {
+  const t = (s.customTrainers || []).find((x) => x.id === s.trainerId) || { name: 'Марија Стојанова', founder: true };
+  return { ...t, ...((s.trainerOverrides || {})[s.trainerId] || {}) };
+}
+
 export function bell(role, n) {
   if (role === 'partner') return '';
   return '<a class="bell" href="#/' + (role === 'trainer' ? 't' : 'c') + '/notifications" aria-label="Известувања' + (n ? ', ' + n + ' нови' : '') + '">' +
@@ -119,8 +129,10 @@ export function appLayout(role, active, content, opts = {}) {
     (key === 'notif' && unread ? '<span class="badge">' + unread + '</span>' : '') + '</a>').join('');
   let extra, who;
   if (role === 'trainer') {
-    extra = '<div class="side-card"><div class="eyebrow accent">ОСНОВАЧ · −50%</div><div class="muted small">Претплата: 500 ден. / месец</div></div>';
-    who = '<span class="avatar accent-bg">МС</span><span><span class="strong block">Марија Стојанова</span><span class="muted small">Тренер · Основач</span></span>';
+    const tr = trainerOf(s);
+    extra = tr.founder ? '<div class="side-card"><div class="eyebrow accent">ОСНОВАЧ · −50%</div><div class="muted small">Претплата: 500 ден. / месец</div></div>'
+      : '<div class="side-card"><div class="eyebrow accent">ПРОБЕН ПЕРИОД · 30 ДЕНА</div><div class="muted small">Потоа 1.000 ден. / месец</div></div>';
+    who = '<span class="avatar accent-bg">' + initials(tr.name) + '</span><span><span class="strong block">' + esc(tr.name) + '</span><span class="muted small">Тренер' + (tr.founder ? ' · Основач' : '') + '</span></span>';
   } else if (role === 'partner') {
     extra = '<div class="side-card"><div class="eyebrow accent">ПАРТНЕР · АКТИВЕН</div><div class="muted small">Месечна претплата</div></div>';
     who = '<span class="avatar accent-bg">ФЗ</span><span><span class="strong block">Фит Зона Аеродром</span><span class="muted small">Партнер · Теретана</span></span>';

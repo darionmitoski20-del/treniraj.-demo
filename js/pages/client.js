@@ -1,7 +1,7 @@
 // Страни за најавен клиент.
 import * as store from '../store.js';
 import { CHALLENGES, LEADERBOARD_OTHERS, DAY_NAMES, DAY_SHORT, SLOT_TIMES } from '../data.js';
-import { esc, initials, appLayout, toast, modal, closeModal, lineChart, chipRow, stars } from '../ui.js';
+import { esc, initials, appLayout, toast, modal, closeModal, lineChart, chipRow, stars, den } from '../ui.js';
 import { chatBubbles, composer, send, attachVideo, scrollChat } from './chat.js';
 import { partnersContent, partnerActions, shortName } from './public.js';
 import { reviewActions } from './social.js';
@@ -33,12 +33,24 @@ export const home = {
       ? '<section class="card accent-card grow"><div class="eyebrow">СЛЕДЕН ТРЕНИНГ</div><div class="display-xs">' + DAY_NAMES[next.day] + ', ' + next.time + '</div><div class="strong">Со ' + esc(nextT.name) + ' · ' + esc(next.type.toLowerCase()) + '</div>' +
         '<div class="row gap-s"><a class="btn btn-dark btn-sm" href="#/c/messages/' + next.trainerId + '">Отвори чет</a><a class="btn btn-outline-dark btn-sm" href="#/c/booking?t=' + next.trainerId + '">Промени термин</a></div></section>'
       : '<section class="card accent-card grow"><div class="eyebrow">НЕМАШ ЗАКАЖАН ТРЕНИНГ</div><div class="display-xs">Закажи го следниот</div><a class="btn btn-dark btn-sm" href="#/c/booking">Закажи термин</a></section>';
+    const pkgCards = trainers.map((t) => ({ t, pk: store.packageFor(c.id, t.id) })).filter((x) => x.pk).map(({ t, pk }) => {
+      const left = pk.total - pk.used;
+      return '<section class="card grow stack-s"><div class="eyebrow muted">МОЈ ПАКЕТ · ' + esc(t.name.toUpperCase()) + '</div><div class="row gap baseline"><span class="display-xs">' + pk.used + ' / ' + pk.total + '</span><span class="muted">термини искористени</span></div>' +
+        '<div class="bar' + (left <= 2 ? ' warn' : '') + '"><div style="width:' + Math.round((pk.used / pk.total) * 100) + '%"></div></div>' +
+        '<div class="row gap-s wrap"><span class="small strong">' + (left ? 'Остануваат ' + left : 'Пакетот е искористен') + '</span><span class="tag ' + (pk.paid ? 'tag-outline' : 'tag-accent') + '">' + (pk.paid ? 'ПЛАТЕНО' : 'ЧЕКА ПЛАЌАЊЕ · ' + den(pk.price) + ' ДЕН.') + '</span></div>' +
+        (left <= 2 ? '<a class="link accent strong small" href="#/c/messages/' + t.id + '">Договори нов пакет со ' + esc(t.name.split(' ')[0]) + ' →</a>' : '') + '</section>';
+    }).join('');
+    const allPlans = store.plansFor(c.id);
+    const activePlan = allPlans.find((pl) => { const g = store.planProgress(pl); return g.done < g.total; }) || allPlans[0];
+    const planCard = activePlan ? (function () { const g = store.planProgress(activePlan); const pct = Math.round((g.done / Math.max(g.total, 1)) * 100);
+      return '<a class="card light w-320" href="#/c/plan/' + activePlan.id + '"><div class="eyebrow">АКТИВЕН ПЛАН</div><div class="h3 upper">' + esc(activePlan.name) + '</div><div class="bar"><div style="width:' + pct + '%"></div></div><div class="small strong">' + g.done + ' од ' + g.total + ' вежби · ' + (g.done === g.total ? 'завршен ✓' : 'отвори и штиклирај →') + '</div></a>'; })() : '';
+    const extraRow = (pkgCards || planCard) ? '<div class="row gap stack-m">' + pkgCards + planCard + '</div>' : '';
     const unreadFor = (tid) => { const th = store.thread(c.id, tid); const lastMsg = th[th.length - 1]; return lastMsg && lastMsg.from !== c.id; };
     const content = '<div class="page-head"><div><div class="muted small strong">' + todayLabel() + '</div><h1 class="display-s">Здраво, ' + esc(c.name.split(' ')[0]) + '</h1></div>' +
       '<div class="pill"><span class="avatar sm accent-bg">' + (ch ? ch.done : 0) + '</span>дена активност по ред</div></div>' +
       '<div class="row gap stack-m">' + nextCard +
       '<section class="card w-320"><div class="eyebrow muted">ЦЕЛ: −' + c.goalKg + ' КГ</div><div class="display-xs">' + pct + '<span class="muted">%</span></div><div class="bar"><div style="width:' + pct + '%"></div></div><div class="muted small">Изгубени ' + lost.toFixed(1) + ' кг од почетокот</div><a class="link accent strong" href="#/c/progress">+ Внеси напредок →</a></section></div>' +
-      '<div class="row gap stack-m"><section class="card grow"><h2 class="eyebrow muted">МОИ ТРЕНЕРИ</h2>' +
+      extraRow + '<div class="row gap stack-m"><section class="card grow"><h2 class="eyebrow muted">МОИ ТРЕНЕРИ</h2>' +
         trainers.map((t) => '<a class="list-row" href="#/c/messages/' + t.id + '"><span class="avatar">' + initials(t.name) + '</span><span class="grow"><span class="strong">' + esc(t.name) + '</span><span class="muted small">' + esc(t.sport) + (unreadFor(t.id) ? ' · нова порака' : '') + '</span></span>' + (unreadFor(t.id) ? '<span class="dot-accent"></span>' : '') + '</a>').join('') +
         pending.map((r) => { const t = store.trainer(r.trainerId); return '<div class="list-row dim"><span class="avatar dashed">' + initials(t.name) + '</span><span class="grow"><span class="strong">' + esc(t.name) + '</span><span class="muted small">' + esc(t.sport) + ' · барањето чека одговор</span></span></div>'; }).join('') +
         '<a class="btn btn-ghost btn-sm" href="#/">+ Најди уште тренер</a></section>' +

@@ -1,7 +1,7 @@
 // Состојба на демото, зачувана во localStorage на прелистувачот.
-import { TRAINERS, DEMO_REQUESTS, DEMO_CLIENTS, SEED_REVIEWS, SEED_POSTS, PARTNERS, PARTNER_STATS, SEED_RECIPES } from './data.js';
+import { TRAINERS, DEMO_REQUESTS, DEMO_CLIENTS, SEED_REVIEWS, SEED_POSTS, PARTNERS, PARTNER_STATS, SEED_RECIPES, TEMPLATES } from './data.js';
 
-const KEY = 'trenirai-demo-v4';
+const KEY = 'trenirai-demo-v5';
 
 function initialState() {
   return {
@@ -28,7 +28,7 @@ function initialState() {
       'c1|t1': [
         { from: 't1', text: 'Здраво Ана! Ти го прикачив планот за оваа недела.', at: ts(-3) },
         { from: 't1', kind: 'video', text: 'Техника: чучњеви', at: ts(-3) },
-        { from: 't1', kind: 'plan', text: 'План — недела 4 · 5 тренинзи', at: ts(-2) },
+        { from: 't1', kind: 'plan', planId: 'pl1', text: 'План — недела 4 · 3 дена, 9 вежби', at: ts(-2) },
         { from: 'c1', text: 'Супер, фала! Ќе ти пратам снимка за корекција.', at: ts(-1) },
       ],
       'c1|t3': [ { from: 't3', text: 'Нов план за исхрана е во прилог. Пиј повеќе вода!', at: ts(-5) }, { from: 't3', kind: 'recipe', recipeId: 'rc4', text: 'Салата со туна и леб од интегрално брашно', at: ts(-4) } ],
@@ -54,6 +54,19 @@ function initialState() {
     trainerComment: 'Одлична работа оваа недела! Продолжи со истото темпо.',
     challenges: { ch1: { joined: true, done: 11, today: false } },
     plans: { selectedTpl: 'tpl1', selectedDay: 0, custom: {} },
+    customTrainers: [],         // тренери што се регистрирале во демото
+    // пакети термини: колку клиентот купил, колку искористил, дали е платено
+    packages: [
+      { id: 'pk1', trainerId: 't1', clientId: 'c1', name: '12 тренинзи', total: 12, used: 8, price: 10800, paid: true, at: ts(-20) },
+      { id: 'pk2', trainerId: 't1', clientId: 'c2', name: '8 тренинзи', total: 8, used: 7, price: 8000, paid: true, at: ts(-12) },
+      { id: 'pk3', trainerId: 't1', clientId: 'c3', name: '12 тренинзи', total: 12, used: 4, price: 10800, paid: false, at: ts(-6) },
+      { id: 'pk4', trainerId: 't1', clientId: 'c4', name: '12 тренинзи', total: 12, used: 5, price: 7200, paid: true, at: ts(-3) },
+    ],
+    // испратени планови со содржина; done = штиклирани вежби („ден:вежба“)
+    sentPlans: [
+      { id: 'pl1', trainerId: 't1', clientId: 'c1', name: 'План — недела 4', at: ts(-2),
+        days: TEMPLATES[0].days.map((d) => d.map((r) => [...r, false])), done: { '0:0': true, '0:1': true, '0:2': true } },
+    ],
     reviews: SEED_REVIEWS.map((r) => ({ ...r })),
     recipes: JSON.parse(JSON.stringify(SEED_RECIPES)),
     sharedRecipes: [{ recipeId: 'rc4', clientId: 'c1', trainerId: 't3', at: ts(-4) }, { recipeId: 'rc1', clientId: 'c1', trainerId: 't1', at: ts(-6) }],
@@ -103,7 +116,7 @@ export function refresh() { listeners.forEach((fn) => fn(state)); }
 // ---- Помошни прашања ----
 
 export function trainer(id) {
-  const base = TRAINERS.find((t) => t.id === id);
+  const base = TRAINERS.find((t) => t.id === id) || (state.customTrainers || []).find((t) => t.id === id);
   if (!base) return null;
   const t = { ...base, ...(state.trainerOverrides[id] || {}) };
   // новите оценки од демото се додаваат на почетниот просек
@@ -156,7 +169,42 @@ export function markStep(step) {
   save();
 }
 
-export function allTrainers() { return TRAINERS.map((t) => trainer(t.id)); }
+// Само тренери со завршен профил се видливи за клиентите
+export function allTrainers() { return [...TRAINERS, ...(state.customTrainers || [])].map((t) => trainer(t.id)).filter((t) => !t.draft); }
+
+// Нов тренер од регистрација: празен профил што се пополнува во воведувањето
+export function createTrainer(name) {
+  const id = uid('tn');
+  const t = { id, name, sport: 'Фитнес', sports: ['Фитнес'], city: 'Скопје', area: '', type: 'both', rating: 0, reviews: 0, goalsReached: 0, price: 0, onlinePrice: 0,
+    pricesPublic: true, founder: false, accepting: true, lat: 41.9965, lng: 21.4314, bio: '', certs: [], badges: [], draft: true, isNew: true };
+  state = { ...state, customTrainers: [...(state.customTrainers || []), t], trainerId: id, role: 'trainer' };
+  save();
+  return id;
+}
+
+// ---- Пакети термини ----
+export function packagesOf(trainerId) { return (state.packages || []).filter((p) => p.trainerId === trainerId); }
+export function packageFor(clientId, trainerId) {
+  const list = (state.packages || []).filter((p) => p.clientId === clientId && p.trainerId === trainerId).sort((a, b) => b.at - a.at);
+  return list.find((p) => p.used < p.total) || list[0] || null;
+}
+export function monthEarnings(trainerId) {
+  const from = Date.now() - 30 * 864e5;
+  return packagesOf(trainerId).filter((p) => p.paid && p.at >= from).reduce((a, p) => a + p.price, 0);
+}
+export function unpaidTotal(trainerId) { return packagesOf(trainerId).filter((p) => !p.paid).reduce((a, p) => a + p.price, 0); }
+// Пакети на кои им остануваат 2 или помалку термини (тие треба да се обноват)
+export function expiringPackages(trainerId) { return packagesOf(trainerId).filter((p) => p.total - p.used <= 2); }
+
+// ---- Планови ----
+export function plan(id) { return (state.sentPlans || []).find((p) => p.id === id); }
+export function planProgress(p) {
+  const total = p.days.reduce((n, d) => n + d.length, 0);
+  return { done: Object.keys(p.done).filter((k) => p.done[k]).length, total };
+}
+export function plansFor(clientId, trainerId) {
+  return (state.sentPlans || []).filter((p) => p.clientId === clientId && (!trainerId || p.trainerId === trainerId)).sort((a, b) => b.at - a.at);
+}
 
 export function threadKey(clientId, trainerId) { return clientId + '|' + trainerId; }
 

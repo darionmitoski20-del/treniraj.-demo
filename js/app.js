@@ -7,12 +7,14 @@ import * as trainer from './pages/trainer.js';
 import * as social from './pages/social.js';
 import * as partner from './pages/partner.js';
 import * as recipes from './pages/recipes.js';
+import * as planview from './pages/planview.js';
+import * as setup from './pages/setup.js';
 
 // Чекори на водичот. Секој чекор се штиклира сам кога ќе се направи дејството.
 const STEPS = {
   trainer: [
     ['req', 'Прифати ново барање од клиент', '#/t/clients?tab=req', 'trainer'],
-    ['msg', 'Одговори на порака од клиент', '#/t/messages/c2', 'trainer'],
+    ['msg', 'Одговори на порака од клиент', '#/t/messages', 'trainer'],
     ['plan', 'Испрати план за тренинг', '#/t/plans', 'trainer'],
     ['recipe', 'Испрати рецепт на клиент', '#/t/recipes', 'trainer'],
     ['cal', 'Додај термин во календарот', '#/t/calendar', 'trainer'],
@@ -24,6 +26,7 @@ const STEPS = {
     ['find', 'Отвори профил на тренер', '#/', null],
     ['request', 'Испрати барање до тренер', '#/', 'client'],
     ['book', 'Закажи термин', '#/c/booking', 'client'],
+    ['planCheck', 'Отвори го планот и штиклирај вежба', '#/c/plan/pl1', 'client'],
     ['progress', 'Внеси напредок', '#/c/progress', 'client'],
     ['review', 'Остави оценка на тренер', '#/trainer/t1', 'client'],
   ],
@@ -43,6 +46,7 @@ const routes = [
   ['/c/feed', social.clientFeed, 'client'], ['/c/notifications', social.clientNotifications, 'client'],
   ['/p/home', partner.home, 'partner'], ['/p/profile', partner.profile, 'partner'],
   ['/t/recipes', recipes.trainerRecipes, 'trainer'], ['/c/recipes', recipes.clientRecipes, 'client'],
+  ['/c/plan/:id', planview.clientPlan, 'client'], ['/t/plan/:id', planview.trainerPlan, 'trainer'], ['/t/setup', setup.setup, 'trainer'],
 ];
 
 let current = null;
@@ -73,13 +77,18 @@ function render(scrollTop) {
     location.hash = s.role === 'trainer' ? '#/t/home' : s.role === 'client' ? '#/c/home' : s.role === 'partner' ? '#/p/home' : '#/signup' + (r.role !== 'client' ? '?role=' + r.role : '');
     return;
   }
+  if (s.role === 'trainer' && r.path !== '/t/setup') {
+    const tr = store.trainer(s.trainerId);
+    if (tr && tr.draft) { location.hash = '#/t/setup'; return; }
+  }
   const same = current && current.path === r.path;
   current = r;
   const focusId = document.activeElement && document.activeElement.id;
   const y = window.scrollY;
   document.body.classList.remove('menu-open');
-  root.innerHTML = r.page.render(r.params, r.query) + guidePanel(s) + demoBar(s);
+  root.innerHTML = r.page.render(r.params, r.query) + (r.path === '/t/setup' ? '' : guidePanel(s)) + (r.path === '/t/setup' ? '' : demoBar(s));
   document.documentElement.style.setProperty('--accent', s.accent);
+  document.body.classList.toggle('guide-open', !!root.querySelector('.guide'));
   if (r.page.mount) r.page.mount(root, r.params, r.query);
   const on = root.querySelector('.side-nav .side-link.on');
   if (on) { const nav = on.parentElement; if (nav.scrollWidth > nav.clientWidth) nav.scrollLeft = on.offsetLeft - nav.clientWidth / 2 + on.offsetWidth / 2; }
