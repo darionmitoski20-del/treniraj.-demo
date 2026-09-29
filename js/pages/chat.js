@@ -27,6 +27,11 @@ export function chatBubbles(msgs, meId) {
         '<div class="msg-card-body"><span class="strong">' + esc(m.text) + '</span>' +
         (m.notes ? m.notes.map((n) => '<div class="note-line"><span class="accent strong">' + esc(n[0]) + '</span> ' + esc(n[1]) + '</div>').join('') : '') + '</div></div>';
     }
+    if (m.kind === 'recipe') {
+      const r = store.recipe(m.recipeId);
+      return '<button type="button" class="msg-recipe ' + (mine ? 'mine' : '') + '" data-act="openRecipe" data-val="' + esc(m.recipeId) + '"><span class="msg-recipe-ic" aria-hidden="true">🍽</span><span class="grow"><span class="eyebrow accent block">РЕЦЕПТ</span><span class="strong block">' + esc(m.text) + '</span>' +
+        (r ? '<span class="muted small">' + r.mins + ' мин · ' + r.kcal + ' kcal · ' + r.protein + ' г протеини</span>' : '') + '</span><span class="accent strong">Отвори →</span></button>';
+    }
     if (m.kind === 'plan') {
       return '<div class="msg-file ' + (mine ? 'mine' : '') + '">' + icon.file + '<span class="strong">' + esc(m.text) + '</span></div>';
     }

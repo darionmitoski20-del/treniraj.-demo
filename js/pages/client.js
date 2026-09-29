@@ -1,10 +1,11 @@
 // Страни за најавен клиент.
 import * as store from '../store.js';
-import { CHALLENGES, LEADERBOARD_OTHERS, DAY_NAMES, DAY_SHORT, SLOT_TIMES, PARTNERS } from '../data.js';
+import { CHALLENGES, LEADERBOARD_OTHERS, DAY_NAMES, DAY_SHORT, SLOT_TIMES } from '../data.js';
 import { esc, initials, appLayout, toast, modal, closeModal, lineChart, chipRow, stars } from '../ui.js';
 import { chatBubbles, composer, send, attachVideo, scrollChat } from './chat.js';
 import { partnersContent, partnerActions, shortName } from './public.js';
 import { reviewActions } from './social.js';
+import { recipeActions } from './recipes.js';
 
 const me = () => store.get().client;
 
@@ -43,7 +44,7 @@ export const home = {
         '<a class="btn btn-ghost btn-sm" href="#/">+ Најди уште тренер</a></section>' +
       '<section class="stack w-320">' +
         (ch && ch.joined ? '<a class="card light" href="#/c/challenges"><div class="eyebrow">АКТИВЕН ПРЕДИЗВИК</div><div class="h3 upper">30 дена движење</div><div class="small strong">Ден ' + ch.done + ' од 30' + (ch.today ? ' · денес ✓' : ' · денес уште не') + '</div></a>' : '<a class="card light" href="#/c/challenges"><div class="eyebrow">ПРЕДИЗВИЦИ</div><div class="h3 upper">Приклучи се</div></a>') +
-        '<section class="card"><div class="eyebrow muted">КУПОН ОД ПАРТНЕР</div><div class="strong">' + esc(PARTNERS[2].name) + ' · ' + esc(PARTNERS[2].offer) + '</div><a class="link accent strong small" href="#/c/partners">Сите партнери →</a></section></section></div>';
+        '<a class="card" href="#/partner/p3"><div class="eyebrow muted">КУПОН ОД ПАРТНЕР</div><div class="strong">' + esc(store.partner('p3').name) + (store.partner('p3').offer ? ' · ' + esc(store.partner('p3').offer) : '') + '</div><span class="link accent strong small">Сите партнери →</span></a></section></div>';
     return appLayout('client', 'home', content);
   },
 };
@@ -78,6 +79,7 @@ export const messages = {
     attach(el, ev, cur) { const c = me(); attachVideo(c.id, activeTid(cur), c.id); },
     videoCall() { toast('Во вистинската апликација тука се отвора видео повик.'); },
     ...reviewActions,
+    ...recipeActions,
   },
 };
 function activeTid(cur) {

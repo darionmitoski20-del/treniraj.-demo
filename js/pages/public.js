@@ -1,6 +1,6 @@
 // Јавни страни: почетна, мапа, профил на тренер, регистрација, квиз, партнери, предизвици.
 import * as store from '../store.js';
-import { SPORTS, CITIES, PARTNERS, CHALLENGES, LEADERBOARD_OTHERS } from '../data.js';
+import { SPORTS, CITIES, CHALLENGES, LEADERBOARD_OTHERS, PARTNER_CATEGORIES } from '../data.js';
 import { esc, initials, icon, publicLayout, appLayout, chipRow, photo, stars, priceLabel, typeLabel, toast, modal, closeModal } from '../ui.js';
 import { reviewsBlock, reviewActions, postCard, postActions } from './social.js';
 
@@ -36,11 +36,11 @@ export const home = {
       '<div class="hero-text"><div class="eyebrow accent line">СИТЕ ТРЕНЕРИ ВО МАКЕДОНИЈА</div>' +
       '<h1 class="display">Тренирај<br>со <span class="accent">најдобрите.</span></h1>' +
       '<p class="lead">Најди тренер, договори термин и следи го напредокот — сè на едно место.</p>' +
-      '<form class="searchbar" data-submit="noop">' +
-        '<label>СПОРТ<select id="f-sport" data-change="fSport">' + opts(SPORTS, search.sport) + '</select></label>' +
-        '<label>ГРАД<select id="f-city" data-change="fCity">' + opts(CITIES, search.city) + '</select></label>' +
-        '<label>ТИП<select id="f-type" data-change="fType">' + ['Сите', 'Онлајн', 'Во живо'].map((o) => '<option' + (o === search.type ? ' selected' : '') + '>' + o + '</option>').join('') + '</select></label>' +
-        '<a class="btn btn-accent" href="#results">' + icon.search + ' БАРАЈ</a></form>' +
+      '<form class="searchbar" data-submit="doSearch">' +
+        '<label>СПОРТ<select name="sport">' + opts(SPORTS, search.sport) + '</select></label>' +
+        '<label>ГРАД<select name="city">' + opts(CITIES, search.city) + '</select></label>' +
+        '<label>ТИП<select name="type">' + ['Сите', 'Онлајн', 'Во живо'].map((o) => '<option' + (o === search.type ? ' selected' : '') + '>' + o + '</option>').join('') + '</select></label>' +
+        '<button type="submit" class="btn btn-accent">' + icon.search + ' БАРАЈ</button></form>' +
       '<a class="quiz-link" href="#/quiz">Не си сигурен? <span class="accent">Направи квиз од 5 прашања →</span></a></div>' +
       '<div class="hero-visual">' + photo('ФОТО: ТРЕНЕР ВО АКЦИЈА', 'dumbbell', 'photo-hero') +
         '<div class="float-card"><span class="avatar">МС</span><span><span class="strong">Марија Стојанова</span><span class="muted-dark small">Фитнес · ★ 4.9</span></span><span class="tag tag-dark">ТРЕНЕР НА МЕСЕЦОТ</span></div>' +
@@ -49,18 +49,21 @@ export const home = {
     const results = '<section class="section" id="results"><div class="section-head"><h2 class="h2">Тренери <span class="muted">(' + list.length + ')</span></h2>' +
       '<label class="field-inline"><span class="sr">Барај по име</span><input id="f-q" type="search" placeholder="Барај по име…" value="' + esc(search.q) + '" data-input="fQ"></label>' +
       '<a class="btn btn-ghost btn-sm" href="#/map">Мапа</a></div>' +
+      (search.city !== 'Сите' || search.type !== 'Сите' ? '<div class="row gap-s wrap"><span class="muted small">Филтри:</span>' + (search.city !== 'Сите' ? '<span class="tag tag-outline">' + esc(search.city) + '</span>' : '') + (search.type !== 'Сите' ? '<span class="tag tag-outline">' + esc(search.type) + '</span>' : '') + '<button type="button" class="link accent small" data-act="clearFilters">Исчисти</button></div>' : '') +
       '<div class="chips">' + chipRow(['Сите', ...SPORTS], search.sport, 'chipSport') + '</div>' +
       (list.length ? '<div class="grid-4">' + list.map((t, i) => trainerCard(t, i + 1)).join('') + '</div>'
         : '<div class="empty">Нема тренери за овој избор. Пробај друг спорт или град.</div>') + '</section>';
     return publicLayout('home', hero + ticker + results);
   },
   actions: {
-    noop() {},
-    fSport(el) { search.sport = el.value; store.refresh(); },
-    fCity(el) { search.city = el.value; store.refresh(); },
-    fType(el) { search.type = el.value; store.refresh(); },
+    doSearch(form) {
+      search.sport = form.sport.value; search.city = form.city.value; search.type = form.type.value;
+      store.refresh();
+      setTimeout(() => { const r = document.getElementById('results'); if (r) r.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 30);
+    },
     fQ(el) { search.q = el.value; store.refresh(); },
     chipSport(el) { search.sport = el.dataset.val; store.refresh(); },
+    clearFilters() { search.sport = 'Сите'; search.city = 'Сите'; search.type = 'Сите'; search.q = ''; store.refresh(); },
   },
 };
 
@@ -70,11 +73,11 @@ export const map = {
   title: 'Мапа',
   render() {
     const trainers = store.allTrainers().filter((t) => t.city !== 'Онлајн');
-    const partners = PARTNERS.filter((p) => p.lat);
+    const partners = store.allPartners().filter((p) => p.lat);
     const sel = store.trainer(mapSel) || trainers[0];
     const list = trainers.map((t) => '<button type="button" class="list-row' + (t.id === sel.id ? ' on' : '') + '" data-act="mapPick" data-val="' + t.id + '">' +
       '<span class="avatar">' + initials(t.name) + '</span><span class="grow"><span class="strong">' + esc(t.name) + '</span><span class="muted small">' + esc(t.sport) + ' · ' + esc(t.city) + ' · ' + stars(t.rating) + '</span></span></button>').join('') +
-      partners.map((p) => '<div class="list-row"><span class="avatar light">%</span><span class="grow"><span class="strong">' + esc(p.name) + '</span><span class="muted small">Партнер · ' + esc(p.offer) + '</span></span></div>').join('');
+      partners.map((p) => '<a class="list-row" href="#/partner/' + p.id + '"><span class="avatar light">' + initials(p.name) + '</span><span class="grow"><span class="strong">' + esc(p.name) + '</span><span class="muted small">Партнер · ' + esc(p.category) + (p.offer ? ' · ' + esc(p.offer) : '') + '</span></span></a>').join('');
     const content = '<div class="map-layout"><section class="map-list"><h1 class="h2">Тренери на мапа</h1><p class="muted small">Тренерите што работат само онлајн не се на мапата.</p>' + list + '</section>' +
       '<section class="map-wrap"><div id="map" class="map"></div>' +
       '<div class="map-card"><span class="avatar">' + initials(sel.name) + '</span><span class="grow"><span class="strong">' + esc(sel.name) + '</span><span class="muted-dark small">' + esc(sel.sport) + ' · ' + esc(sel.city) + ', ' + esc(sel.area) + '</span></span><a class="btn btn-dark btn-sm" href="#/trainer/' + sel.id + '">Профил</a></div></section></div>';
@@ -93,9 +96,9 @@ export const map = {
       const ic = L.divIcon({ className: '', html: '<span class="pin' + (on ? ' on' : '') + '">' + initials(t.name) + '</span>', iconSize: [40, 40], iconAnchor: [20, 40] });
       L.marker([t.lat, t.lng], { icon: ic }).addTo(m).on('click', () => { mapSel = t.id; store.refresh(); });
     });
-    PARTNERS.filter((p) => p.lat).forEach((p) => {
+    store.allPartners().filter((p) => p.lat).forEach((p) => {
       const ic = L.divIcon({ className: '', html: '<span class="pin partner">%</span>', iconSize: [36, 36], iconAnchor: [18, 36] });
-      L.marker([p.lat, p.lng], { icon: ic }).addTo(m).bindPopup(esc(p.name) + '<br>' + esc(p.offer));
+      L.marker([p.lat, p.lng], { icon: ic }).addTo(m).on('click', () => { location.hash = '#/partner/' + p.id; });
     });
   },
   actions: { mapPick(el) { mapSel = el.dataset.val; store.refresh(); } },
@@ -127,7 +130,7 @@ export const trainerProfile = {
       '<aside class="profile-side">' + '<div class="profile-photo">' + photo('ФОТО / ВИДЕО', 'person', 'photo-tall') +
         (t.monthTop ? '<span class="tag tag-accent profile-top">ТРЕНЕР НА МЕСЕЦОТ</span>' : '') +
         '<button type="button" class="round-play" data-act="video" aria-label="Пушти видео презентација">' + icon.play + '</button></div>' +
-        '<div class="row gap">' + cta + '</div>' +
+        '<div class="row gap' + (s.role === 'trainer' ? '' : ' cta-bar') + '">' + cta + '</div>' +
         '<div class="status ' + (t.accepting ? 'ok' : 'no') + '">' + (t.accepting ? 'Прима нови клиенти · прв разговор бесплатно' : 'Моментално не прима нови клиенти') + '</div></aside>' +
       '<section class="profile-main">' +
         '<div class="row gap-s wrap">' + t.badges.map((b, i) => '<span class="tag ' + (i === 0 ? 'tag-light' : 'tag-outline') + '">' + esc(b.toUpperCase()) + '</span>').join('') + '</div>' +
@@ -199,17 +202,17 @@ let signupRole = null;
 export const signup = {
   title: 'Регистрација',
   render(p, q) {
-    const role = signupRole || (q.role === 'trainer' ? 'trainer' : 'client');
+    const role = signupRole || (q.role === 'trainer' || q.role === 'partner' ? q.role : 'client');
     const roleBtn = (r, title, sub) => '<button type="button" class="role-btn' + (role === r ? ' on' : '') + '" data-act="signRole" data-val="' + r + '"><span class="strong">' + title + '</span><span class="small">' + sub + '</span></button>';
     return '<div class="split">' +
       '<section class="split-visual">' + logo2() + '<div class="split-copy"><h1 class="display-s">Првиот чекор<br>е <span class="accent">најтешкиот.</span></h1><p class="lead">Направи профил за 30 секунди.</p></div>' + photo('', 'dumbbell', 'photo-fill') + '</section>' +
-      '<section class="split-form"><h2 class="h1">Регистрација</h2><div class="grid-2 gap-s">' + roleBtn('client', 'Барам тренер', 'Бесплатно за клиенти') + roleBtn('trainer', 'Јас сум тренер', '30 дена бесплатно') + '</div>' +
+      '<section class="split-form"><h2 class="h1">Регистрација</h2><div class="grid-3 gap-s roles">' + roleBtn('client', 'Барам тренер', 'Бесплатно') + roleBtn('trainer', 'Тренер сум', '30 дена бесплатно') + roleBtn('partner', 'Имам бизнис', 'Теретана, продавница…') + '</div>' +
       '<form class="stack" data-submit="doSignup"><input type="hidden" name="role" value="' + role + '"><input type="hidden" name="next" value="' + esc(q.next || '') + '">' +
-      '<label class="field">Име и презиме<input name="name" required value="' + (role === 'trainer' ? 'Марија Стојанова' : 'Ана Костова') + '"></label>' +
-      '<label class="field">Email<input name="email" type="email" required value="' + (role === 'trainer' ? 'marija@primer.mk' : 'ana@primer.mk') + '"></label>' +
+      '<label class="field">' + (role === 'partner' ? 'Име на бизнисот' : 'Име и презиме') + '<input name="name" required autocomplete="' + (role === 'partner' ? 'organization' : 'name') + '" value="' + (role === 'trainer' ? 'Марија Стојанова' : role === 'partner' ? 'Фит Зона Аеродром' : 'Ана Костова') + '"></label>' +
+      '<label class="field">Email<input name="email" type="email" inputmode="email" autocomplete="email" required value="' + (role === 'trainer' ? 'marija@primer.mk' : role === 'partner' ? 'info@fitzona.mk' : 'ana@primer.mk') + '"></label>' +
       '<label class="field">Лозинка<input name="pass" type="password" required value="demo1234"></label>' +
       '<label class="check"><input type="checkbox" required checked> Потврдувам дека имам 18+ години и ги прифаќам условите</label>' +
-      '<button type="submit" class="btn btn-accent btn-lg">' + (role === 'trainer' ? 'ЗАПОЧНИ 30 ДЕНА БЕСПЛАТНО →' : 'ПРОДОЛЖИ →') + '</button></form>' +
+      '<button type="submit" class="btn btn-accent btn-lg">' + (role === 'trainer' ? 'ЗАПОЧНИ 30 ДЕНА БЕСПЛАТНО →' : role === 'partner' ? 'НАПРАВИ ПРОФИЛ ЗА БИЗНИСОТ →' : 'ПРОДОЛЖИ →') + '</button></form>' +
       '<p class="muted small center">Демо: полињата се пополнети однапред, само кликни.</p></section></div>';
   },
   actions: {
@@ -222,6 +225,9 @@ export const signup = {
         store.set((s) => ({ ...s, role: 'client', client: { ...s.client, name: f.get('name'), email: f.get('email') } }));
         const next = f.get('next');
         location.hash = next ? '#' + next : '#/quiz';
+      } else if (role === 'partner') {
+        store.set({ role: 'partner' });
+        location.hash = '#/p/profile';
       } else {
         store.set({ role: 'trainer' });
         location.hash = '#/t/home';
@@ -289,32 +295,101 @@ export const quiz = {
 
 // ---------- Партнери ----------
 const partnerState = { cat: 'Сите' };
+
+function partnerCard(p) {
+  const s = store.get();
+  return '<article class="card pcard"><a class="row gap-s plink" href="#/partner/' + p.id + '"><span class="avatar">' + initials(p.name) + '</span><div class="grow"><div class="strong">' + esc(p.name) + '</div><div class="muted small">' + esc(p.category) + ' · ' + esc(p.city) + '</div></div></a>' +
+    '<p class="muted small pdesc">' + esc(p.desc || '') + '</p>' +
+    '<div class="row gap-s wrap">' + (p.address ? '<span class="chip-s">📍 ' + esc(p.city) + '</span>' : '') + (p.website ? '<span class="chip-s">Веб-сајт</span>' : '') + (p.instagram ? '<span class="chip-s">Instagram</span>' : '') + (p.phone ? '<span class="chip-s">Телефон</span>' : '') + '</div>' +
+    (p.offer ? '<div class="coupon-row"><span class="small strong">' + esc(p.offer) + '</span><button type="button" class="link accent" data-act="coupon" data-val="' + p.id + '">КУПОН →</button></div>'
+      : '<a class="coupon-row plain" href="#/partner/' + p.id + '"><span class="small strong">Види профил</span><span class="accent strong">→</span></a>') +
+    (s.role === 'partner' && p.id === s.partnerId ? '<span class="tag tag-accent">ТВОЈ ПРОФИЛ</span>' : '') + '</article>';
+}
+
 export function partnersContent() {
-  const cats = ['Сите', 'Теретани', 'Фан шопови', 'Суплементи', 'Физиотерапија'];
-  const list = PARTNERS.filter((p) => partnerState.cat === 'Сите' || p.category === partnerState.cat);
-  const feat = PARTNERS.find((p) => p.featured);
+  const all = store.allPartners();
+  const cats = ['Сите', ...PARTNER_CATEGORIES];
+  const list = all.filter((p) => partnerState.cat === 'Сите' || p.category === partnerState.cat);
+  const feat = all.find((p) => p.featured);
   return '<div class="section-head"><h1 class="display-s">Партнери</h1><div class="chips">' + chipRow(cats, partnerState.cat, 'pCat') + '</div></div>' +
     '<div class="partners-layout"><div class="stack">' +
-    '<section class="featured"><div class="featured-photo">' + photo('', 'dumbbell') + '</div><div class="featured-body"><div class="eyebrow">ИЗДВОЕН ПАРТНЕР</div><div class="h2 upper">' + esc(feat.name) + '</div><div class="strong small">' + esc(feat.category) + ' · ' + esc(feat.city) + '</div></div>' +
-    '<div class="featured-cta"><div class="coupon"><div class="small strong">' + esc(feat.offer) + '</div></div><button type="button" class="btn btn-dark" data-act="coupon" data-val="' + feat.id + '">ЗЕМИ КУПОН</button></div></section>' +
-    '<div class="grid-3">' + list.map((p) => '<article class="card pcard"><div class="row gap-s"><span class="avatar">' + initials(p.name) + '</span><div><div class="strong">' + esc(p.name) + '</div><div class="muted small">' + esc(p.category) + ' · ' + esc(p.city) + '</div></div></div>' +
-      '<div class="coupon-row"><span class="small strong">' + esc(p.offer) + '</span><button type="button" class="link accent" data-act="coupon" data-val="' + p.id + '">КУПОН →</button></div></article>').join('') + '</div></div>' +
-    '<aside class="stack"><section class="card light"><h2 class="h3 upper">Имаш бизнис во спортот?</h2><p class="small">Прикажи се пред клиентите и тренерите на Тренирај.</p><div class="small strong">Месечна претплата · цена по договор</div><button type="button" class="btn btn-dark" data-act="becomePartner">СТАНИ ПАРТНЕР</button></section>' +
-    '<section class="card"><h2 class="eyebrow muted">ПАРТНЕРОТ ДОБИВА</h2>' + ['Профил со фото и локација', 'Купони за корисниците', 'Приказ на мапата', 'Статистика за прегледи и купони'].map((x) => '<div class="check-line"><span class="accent">✓</span>' + x + '</div>').join('') + '</section></aside></div>';
+    '<section class="featured"><div class="featured-photo">' + photo('', 'dumbbell') + '</div><div class="featured-body"><div class="eyebrow">ИЗДВОЕН ПАРТНЕР</div><a class="h2 upper plink" href="#/partner/' + feat.id + '">' + esc(feat.name) + '</a><div class="strong small">' + esc(feat.category) + ' · ' + esc(feat.city) + (feat.address ? ', ' + esc(feat.address) : '') + '</div></div>' +
+    '<div class="featured-cta">' + (feat.offer ? '<div class="coupon"><div class="small strong">' + esc(feat.offer) + '</div></div><button type="button" class="btn btn-dark" data-act="coupon" data-val="' + feat.id + '">ЗЕМИ КУПОН</button>' : '') + '<a class="btn btn-outline-dark btn-sm" href="#/partner/' + feat.id + '">ПРОФИЛ</a></div></section>' +
+    (list.length ? '<div class="grid-3">' + list.map(partnerCard).join('') + '</div>' : '<div class="empty">Нема партнери во оваа категорија.</div>') + '</div>' +
+    '<aside class="stack"><section class="card light"><h2 class="h3 upper">Имаш бизнис во спортот?</h2><p class="small">Направи профил со локација, контакт и понуди. Клиентите и тренерите на Тренирај ќе те најдат.</p><div class="small strong">Месечна претплата · купоните се незадолжителни</div><a class="btn btn-dark" href="#/signup?role=partner">СТАНИ ПАРТНЕР</a></section>' +
+    '<section class="card"><h2 class="eyebrow muted">ПАРТНЕРОТ ДОБИВА</h2>' + ['Профил со опис, фото и локација на мапа', 'Веб-сајт, Instagram и контакт', 'Купони за корисниците (по избор)', 'Статистика: прегледи, кликови, купони'].map((x) => '<div class="check-line"><span class="accent">✓</span>' + x + '</div>').join('') + '</section></aside></div>';
 }
+
+function contactLinks(p) {
+  const rows = [];
+  if (p.address || p.city) rows.push(['📍', 'Адреса', (p.address ? p.address + ', ' : '') + p.city, null]);
+  if (p.hours) rows.push(['🕒', 'Работно време', p.hours, null]);
+  if (p.website) rows.push(['🌐', 'Веб-сајт', p.website, 'web']);
+  if (p.instagram) rows.push(['📷', 'Instagram', '@' + p.instagram.replace(/^@/, ''), 'insta']);
+  if (p.phone) rows.push(['📞', 'Телефон', p.phone, 'phone']);
+  if (p.email) rows.push(['✉️', 'Email', p.email, 'email']);
+  return rows.map(([ic, label, val, kind]) => '<div class="contact-row"><span class="contact-ic" aria-hidden="true">' + ic + '</span><span class="grow"><span class="muted small block">' + label + '</span>' +
+    (kind ? '<button type="button" class="link strong" data-act="pClick" data-val="' + p.id + '" data-kind="' + kind + '">' + esc(val) + '</button>' : '<span class="strong">' + esc(val) + '</span>') + '</span></div>').join('');
+}
+
+const seenPartners = new Set();
+export const partnerProfile = {
+  title: (p) => (store.partner(p.id) || {}).name || 'Партнер',
+  render(prm) {
+    const p = store.partner(prm.id);
+    if (!p) return notFound.render();
+    const s = store.get();
+    const content = '<div class="profile">' +
+      '<aside class="profile-side"><div class="profile-photo">' + photo('ФОТО / ЛОГО', 'dumbbell', 'photo-tall') + (p.featured ? '<span class="tag tag-accent profile-top">ИЗДВОЕН ПАРТНЕР</span>' : '') + '</div>' +
+        (p.offer ? '<section class="card accent-card"><div class="eyebrow">ПОНУДА ЗА КОРИСНИЦИТЕ НА ТРЕНИРАЈ</div><div class="display-xs">' + esc(p.offer) + '</div><button type="button" class="btn btn-dark" data-act="coupon" data-val="' + p.id + '">ЗЕМИ КУПОН</button></section>' : '') +
+        (s.role === 'partner' && s.partnerId === p.id ? '<a class="btn btn-ghost" href="#/p/profile">Уреди го профилот</a>' : '') + '</aside>' +
+      '<section class="profile-main"><div class="row gap-s wrap"><span class="tag tag-light">' + esc(p.category.toUpperCase()) + '</span><span class="tag tag-outline">ПАРТНЕР</span></div>' +
+        '<h1 class="display-s">' + esc(p.name) + '</h1><div class="muted">' + esc(p.city) + (p.address ? ', ' + esc(p.address) : '') + '</div>' +
+        (p.desc ? '<div class="card"><h2 class="eyebrow muted">ЗА НАС</h2><p>' + esc(p.desc) + '</p></div>' : '') +
+        '<div class="grid-2"><div class="card"><h2 class="eyebrow muted">КОНТАКТ</h2>' + contactLinks(p) + '</div>' +
+        '<div class="card"><h2 class="eyebrow muted">ЛОКАЦИЈА</h2>' + (p.lat ? '<div id="pmap" class="pmap"></div>' : '<p class="muted">' + (p.city === 'Онлајн' ? 'Работи онлајн, со достава низ Македонија.' : 'Локацијата не е внесена.') + '</p>') + '</div></div>' +
+      '</section></div>';
+    if (s.role === 'client') return appLayout('client', 'partners', content);
+    if (s.role === 'partner') return appLayout('partner', 'view', content);
+    return publicLayout('partners', content);
+  },
+  mount(root, prm) {
+    const s = store.get();
+    if (!(s.role === 'partner' && s.partnerId === prm.id) && !seenPartners.has(prm.id)) { seenPartners.add(prm.id); store.trackPartner(prm.id, 'views'); }
+    const el = document.getElementById('pmap'); const p = store.partner(prm.id);
+    if (!el || !p || !p.lat) return;
+    if (!window.L) { el.innerHTML = '<div class="muted small pad">Мапата не можеше да се вчита.</div>'; return; }
+    const L = window.L;
+    const m = L.map(el, { zoomControl: false, attributionControl: true, dragging: false, scrollWheelZoom: false }).setView([p.lat, p.lng], 15);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution: '© OpenStreetMap, © CARTO', maxZoom: 19 }).addTo(m);
+    L.marker([p.lat, p.lng], { icon: L.divIcon({ className: '', html: '<span class="pin on">' + initials(p.name) + '</span>', iconSize: [40, 40], iconAnchor: [20, 40] }) }).addTo(m);
+  },
+  actions: {},
+};
+
 export const partnerActions = {
   pCat(el) { partnerState.cat = el.dataset.val; store.refresh(); },
   coupon(el) {
-    const p = PARTNERS.find((x) => x.id === el.dataset.val);
+    const p = store.partner(el.dataset.val);
+    store.trackPartner(p.id, 'couponViews');
     modal('<div class="eyebrow accent">ТВОЈ КУПОН</div><h2 class="h2">' + esc(p.name) + '</h2><p class="muted">' + esc(p.offer) + '</p><div class="code-box">' + esc(p.code) + '</div><p class="muted small">Покажи го кодот на касата или внеси го при онлајн нарачка.</p><button type="button" class="btn btn-accent" data-act="copyCode" data-val="' + esc(p.code) + '">КОПИРАЈ КОД</button>');
   },
   copyCode(el) { try { navigator.clipboard.writeText(el.dataset.val); } catch (e) { /* */ } toast('Кодот е копиран'); },
-  becomePartner() { modal('<h2 class="h2">Стани партнер</h2><form class="stack" data-submit="partnerLead"><label class="field">Име на бизнисот<input required name="n"></label><label class="field">Категорија<select><option>Теретана</option><option>Фан шоп</option><option>Суплементи</option><option>Физиотерапија</option></select></label><label class="field">Телефон или email<input required name="c"></label><button class="btn btn-accent" type="submit">ИСПРАТИ</button></form>'); },
-  partnerLead() { closeModal(); toast('Благодариме! Ќе ве контактираме во рок од 2 работни дена.'); },
+  pClick(el) {
+    store.trackPartner(el.dataset.val, 'clicks');
+    const kind = el.dataset.kind;
+    toast(kind === 'web' ? 'Во вистинската апликација ова го отвора веб-сајтот.' : kind === 'insta' ? 'Во вистинската апликација ова го отвора Instagram профилот.' : kind === 'phone' ? 'На телефон ова директно повикува.' : 'Ова отвора нова email порака.');
+  },
 };
+partnerProfile.actions = partnerActions;
+
 export const partners = {
   title: 'Партнери',
-  render() { return publicLayout('partners', '<div class="section">' + partnersContent() + '</div>'); },
+  render() {
+    const s = store.get();
+    if (s.role === 'partner') return appLayout('partner', 'all', partnersContent());
+    return publicLayout('partners', '<div class="section">' + partnersContent() + '</div>');
+  },
   actions: partnerActions,
 };
 

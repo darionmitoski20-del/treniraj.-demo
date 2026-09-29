@@ -1,7 +1,7 @@
 // Состојба на демото, зачувана во localStorage на прелистувачот.
-import { TRAINERS, DEMO_REQUESTS, DEMO_CLIENTS, SEED_REVIEWS, SEED_POSTS } from './data.js';
+import { TRAINERS, DEMO_REQUESTS, DEMO_CLIENTS, SEED_REVIEWS, SEED_POSTS, PARTNERS, PARTNER_STATS, SEED_RECIPES } from './data.js';
 
-const KEY = 'trenirai-demo-v2';
+const KEY = 'trenirai-demo-v4';
 
 function initialState() {
   return {
@@ -13,6 +13,9 @@ function initialState() {
       goal: 'Намалување тежина', goalKg: 8, premium: false, emailReminders: true },
     trainerId: 't1',            // демо тренерот
     trainerOverrides: {},       // измени од „Мој профил“
+    partnerId: 'p1',            // демо партнерот (бизнис)
+    partnerOverrides: {},
+    partnerStats: JSON.parse(JSON.stringify(PARTNER_STATS)),
     requests: DEMO_REQUESTS.map((r) => ({ ...r })),
     // активни соработки клиент–тренер
     links: [
@@ -28,7 +31,7 @@ function initialState() {
         { from: 't1', kind: 'plan', text: 'План — недела 4 · 5 тренинзи', at: ts(-2) },
         { from: 'c1', text: 'Супер, фала! Ќе ти пратам снимка за корекција.', at: ts(-1) },
       ],
-      'c1|t3': [ { from: 't3', text: 'Нов план за исхрана е во прилог. Пиј повеќе вода!', at: ts(-5) } ],
+      'c1|t3': [ { from: 't3', text: 'Нов план за исхрана е во прилог. Пиј повеќе вода!', at: ts(-5) }, { from: 't3', kind: 'recipe', recipeId: 'rc4', text: 'Салата со туна и леб од интегрално брашно', at: ts(-4) } ],
       'c2|t1': [
         { from: 'c2', text: 'Ти праќам снимка од мртво кревање, дали е добра техниката?', at: ts(-1) },
         { from: 'c2', kind: 'video', text: 'Мртво кревање — снимка од клиент', at: ts(-1) },
@@ -52,6 +55,8 @@ function initialState() {
     challenges: { ch1: { joined: true, done: 11, today: false } },
     plans: { selectedTpl: 'tpl1', selectedDay: 0, custom: {} },
     reviews: SEED_REVIEWS.map((r) => ({ ...r })),
+    recipes: JSON.parse(JSON.stringify(SEED_RECIPES)),
+    sharedRecipes: [{ recipeId: 'rc4', clientId: 'c1', trainerId: 't3', at: ts(-4) }, { recipeId: 'rc1', clientId: 'c1', trainerId: 't1', at: ts(-6) }],
     posts: SEED_POSTS.map((p) => ({ ...p, likes: [...p.likes], at: ts(p.daysAgo) })),
     notifications: [
       { id: 'n1', to: 't1', text: 'Ново барање од Ивана М.', href: '#/t/clients', at: ts(-0.1), read: false },
@@ -120,7 +125,16 @@ export function postsBy(trainerId) {
 }
 
 // ---- Известувања ----
-export function meId() { return state.role === 'trainer' ? state.trainerId : state.role === 'client' ? state.client.id : null; }
+export function meId() { return state.role === 'trainer' ? state.trainerId : state.role === 'client' ? state.client.id : state.role === 'partner' ? state.partnerId : null; }
+
+// ---- Партнери ----
+export function partner(id) { const b = PARTNERS.find((p) => p.id === id); return b ? { ...b, ...(state.partnerOverrides[id] || {}) } : null; }
+export function allPartners() { return PARTNERS.map((p) => partner(p.id)); }
+export function trackPartner(id, field) {
+  if (!state.partnerStats[id]) return;
+  state = { ...state, partnerStats: { ...state.partnerStats, [id]: { ...state.partnerStats[id], [field]: state.partnerStats[id][field] + 1 } } };
+  save();
+}
 
 export function notify(to, text, href) {
   state = { ...state, notifications: [{ id: uid('n'), to, text, href, at: Date.now(), read: false }, ...(state.notifications || [])].slice(0, 60) };
@@ -153,10 +167,12 @@ export function addMessage(clientId, trainerId, msg) {
   const fromTrainer = msg.from === trainerId;
   const to = fromTrainer ? clientId : trainerId;
   const fromName = fromTrainer ? (trainer(trainerId) || {}).name : clientName(clientId);
-  const what = msg.kind === 'plan' ? ' ти прати нов план' : msg.kind === 'video' ? ' ти прати снимка' : ': „' + String(msg.text).slice(0, 40) + (String(msg.text).length > 40 ? '…' : '') + '“';
+  const what = msg.kind === 'recipe' ? ' ти прати рецепт: ' + msg.text : msg.kind === 'plan' ? ' ти прати нов план' : msg.kind === 'video' ? ' ти прати снимка' : ': „' + String(msg.text).slice(0, 40) + (String(msg.text).length > 40 ? '…' : '') + '“';
   notify(to, fromName + what, fromTrainer ? '#/c/messages/' + trainerId : '#/t/messages/' + clientId);
   set((s) => ({ ...s, threads: { ...s.threads, [key]: [...(s.threads[key] || []), { at: Date.now(), ...msg }] } }));
 }
+
+export function recipe(id) { return (state.recipes || []).find((r) => r.id === id); }
 
 export function clientName(id) {
   if (id === state.client.id) { const p = state.client.name.split(' '); return p[0] + (p[1] ? ' ' + p[1][0] + '.' : ''); }

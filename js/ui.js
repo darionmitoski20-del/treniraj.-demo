@@ -52,52 +52,88 @@ export function photo(label, iconName = 'person', cls = '') {
   return '<div class="photo ' + cls + '">' + '<span class="photo-icon">' + icon[iconName] + '</span>' + (label ? '<span class="photo-label">' + esc(label) + '</span>' : '') + '</div>';
 }
 
+// Надворешни куки што ги поставува app.js (на пр. бројач на водичот)
+export const hooks = { guideLabel: () => 'Водич' };
+
+const hamburger = '<button type="button" class="burger" data-act="menuOpen" aria-label="Отвори мени" aria-controls="drawer">' +
+  '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h10"/></svg></button>';
+
+function homeFor(role) { return role === 'trainer' ? '#/t/home' : role === 'client' ? '#/c/home' : role === 'partner' ? '#/p/home' : '#/'; }
+
+// Мени за телефон (хамбургер): линкови + демо контроли
+function drawer(links, active, who) {
+  const s = get();
+  const roleBtn = (role, label) => '<button type="button" class="seg' + (s.role === (role || null) ? ' on' : '') + '" data-act="demoRole" data-val="' + role + '">' + label + '</button>';
+  return '<div class="drawer" id="drawer"><div class="drawer-back" data-act="menuClose"></div>' +
+    '<nav class="drawer-panel" aria-label="Мени"><div class="drawer-head">' + logo() + '<button type="button" class="burger" data-act="menuClose" aria-label="Затвори мени">✕</button></div>' +
+    (who ? '<div class="drawer-who">' + who + '</div>' : '') +
+    '<div class="drawer-links">' + links.map(([href, label, key, badge]) => '<a href="' + href + '" class="drawer-link' + (active === key ? ' on' : '') + '">' + label + (badge ? '<span class="badge">' + badge + '</span>' : '') + '</a>').join('') + '</div>' +
+    '<div class="drawer-demo"><div class="eyebrow accent">ДЕМО · ГЛЕДАЈ КАКО</div><div class="segs">' + roleBtn('trainer', 'Тренер') + roleBtn('client', 'Клиент') + roleBtn('partner', 'Партнер') + roleBtn('', 'Гостин') + '</div>' +
+    '<div class="row gap-s"><button type="button" class="btn btn-ghost btn-sm grow" data-act="guideToggle">' + esc(hooks.guideLabel()) + '</button><button type="button" class="btn btn-ghost btn-sm" data-act="demoReset" aria-label="Врати ги пробните податоци">↺</button></div></div>' +
+    '</nav></div>';
+}
+
 // Јавен изглед: горно мени
 export function publicLayout(active, content) {
   const s = get();
   const link = (href, label, key) => '<a href="' + href + '" class="' + (active === key ? 'on' : '') + '">' + label + '</a>';
   const right = s.role
-    ? '<a class="btn btn-accent btn-sm" href="' + (s.role === 'trainer' ? '#/t/home' : '#/c/home') + '">Мој простор</a>'
+    ? '<a class="btn btn-accent btn-sm" href="' + homeFor(s.role) + '">Мој простор</a>'
     : '<a href="#/signup" class="nav-link">Најава</a><a class="btn btn-accent btn-sm" href="#/signup?role=trainer">Стани тренер</a>';
-  return '<header class="topbar">' + logo() +
-    '<nav class="topnav">' + link('#/', 'Тренери', 'home') + link('#/map', 'Мапа', 'map') + link('#/challenges', 'Предизвици', 'challenges') + link('#/partners', 'Партнери', 'partners') + '</nav>' +
-    '<div class="topbar-right">' + right + '</div></header>' +
+  const links = [['#/', 'Тренери', 'home'], ['#/map', 'Мапа', 'map'], ['#/challenges', 'Предизвици', 'challenges'], ['#/partners', 'Партнери', 'partners']];
+  const extra = s.role ? [[homeFor(s.role), 'Мој простор →', 'mine']] : [['#/signup', 'Најава', 'login'], ['#/signup?role=trainer', 'Стани тренер', 'st'], ['#/signup?role=partner', 'Стани партнер', 'sp']];
+  return '<header class="topbar">' + hamburger + logo() +
+    '<nav class="topnav">' + links.map(([h, l, k]) => link(h, l, k)).join('') + '</nav>' +
+    '<div class="topbar-right">' + right + '</div></header>' + drawer([...links, ...extra], active, '') +
     '<main class="page">' + content + '</main>';
 }
 
 const CLIENT_NAV = [
   ['#/c/home', 'Мој преглед', 'home'], ['#/', 'Најди тренер', 'find'], ['#/c/messages', 'Пораки', 'messages'],
-  ['#/c/booking', 'Термини', 'booking'], ['#/c/progress', 'Напредок', 'progress'], ['#/c/feed', 'Објави', 'feed'],
+  ['#/c/booking', 'Термини', 'booking'], ['#/c/progress', 'Напредок', 'progress'], ['#/c/recipes', 'Рецепти', 'recipes'], ['#/c/feed', 'Објави', 'feed'],
   ['#/c/challenges', 'Предизвици', 'challenges'], ['#/c/partners', 'Партнери', 'partners'],
   ['#/c/notifications', 'Известувања', 'notif'], ['#/c/settings', 'Мој профил', 'settings'],
 ];
 const TRAINER_NAV = [
   ['#/t/home', 'Преглед', 'home'], ['#/t/clients', 'Клиенти', 'clients'], ['#/t/messages', 'Пораки', 'messages'],
-  ['#/t/calendar', 'Календар', 'calendar'], ['#/t/plans', 'Планови и шаблони', 'plans'], ['#/t/posts', 'Објави', 'posts'],
+  ['#/t/calendar', 'Календар', 'calendar'], ['#/t/plans', 'Планови и шаблони', 'plans'], ['#/t/recipes', 'Рецепти', 'recipes'], ['#/t/posts', 'Објави', 'posts'],
   ['#/t/notifications', 'Известувања', 'notif'], ['#/t/profile', 'Мој профил', 'profile'],
+];
+const PARTNER_NAV = [
+  ['#/p/home', 'Преглед', 'home'], ['#/p/profile', 'Уреди профил', 'edit'], ['#/partner/p1', 'Мој јавен профил', 'view'], ['#/partners', 'Сите партнери', 'all'],
 ];
 
 export function bell(role, n) {
+  if (role === 'partner') return '';
   return '<a class="bell" href="#/' + (role === 'trainer' ? 't' : 'c') + '/notifications" aria-label="Известувања' + (n ? ', ' + n + ' нови' : '') + '">' +
     '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10 21a2 2 0 0 0 4 0"/></svg>' +
     (n ? '<span class="badge">' + n + '</span>' : '') + '</a>';
 }
 
-// Изглед за најавен корисник: странично мени (на мобилен — долу)
+// Изглед за најавен корисник: странично мени на компјутер, хамбургер мени на телефон
 export function appLayout(role, active, content, opts = {}) {
-  const nav = role === 'trainer' ? TRAINER_NAV : CLIENT_NAV;
+  const nav = role === 'trainer' ? TRAINER_NAV : role === 'partner' ? PARTNER_NAV.map(([h, l, k]) => [k === 'view' ? '#/partner/' + get().partnerId : h, l, k]) : CLIENT_NAV;
   const s = get();
-  const unread = unreadCount();
+  const unread = role === 'partner' ? 0 : unreadCount();
   const items = nav.map(([href, label, key]) => '<a href="' + href + '" class="side-link' + (active === key ? ' on' : '') + '">' + label +
     (key === 'notif' && unread ? '<span class="badge">' + unread + '</span>' : '') + '</a>').join('');
-  const extra = role === 'trainer'
-    ? '<div class="side-card"><div class="eyebrow accent">ОСНОВАЧ · −50%</div><div class="muted small">Претплата: 500 ден. / месец</div></div>'
-    : (s.client.premium
+  let extra, who;
+  if (role === 'trainer') {
+    extra = '<div class="side-card"><div class="eyebrow accent">ОСНОВАЧ · −50%</div><div class="muted small">Претплата: 500 ден. / месец</div></div>';
+    who = '<span class="avatar accent-bg">МС</span><span><span class="strong block">Марија Стојанова</span><span class="muted small">Тренер · Основач</span></span>';
+  } else if (role === 'partner') {
+    extra = '<div class="side-card"><div class="eyebrow accent">ПАРТНЕР · АКТИВЕН</div><div class="muted small">Месечна претплата</div></div>';
+    who = '<span class="avatar accent-bg">ФЗ</span><span><span class="strong block">Фит Зона Аеродром</span><span class="muted small">Партнер · Теретана</span></span>';
+  } else {
+    extra = s.client.premium
       ? '<div class="side-card"><div class="eyebrow accent">ПРЕМИУМ АКТИВЕН</div><div class="muted small">Пробен период: 14 дена</div></div>'
-      : '<a class="side-card light" href="#/c/settings"><div class="eyebrow">ПРЕМИУМ</div><div class="small strong">Попусти кај тренери и напредна аналитика</div></a>');
+      : '<a class="side-card light" href="#/c/settings"><div class="eyebrow">ПРЕМИУМ</div><div class="small strong">Попусти кај тренери и напредна аналитика</div></a>';
+    who = '<span class="avatar accent-bg">' + initials(s.client.name) + '</span><span><span class="strong block">' + esc(s.client.name) + '</span><span class="muted small">Клиент' + (s.client.premium ? ' · Премиум' : '') + '</span></span>';
+  }
+  const current = nav.find(([, , k]) => k === active);
   return '<div class="app' + (opts.full ? ' app-full' : '') + '"><aside class="side"><div class="side-top">' + logo() + bell(role, unread) + '</div><nav class="side-nav" aria-label="Мени">' + items + '</nav>' + extra + '</aside>' +
-    '<div class="m-top">' + logo() + '<span class="grow"></span><button type="button" class="m-demo" data-act="demoMenu" aria-label="Демо: смени улога">ДЕМО · ' + (role === 'trainer' ? 'Тренер' : 'Клиент') + ' ▾</button>' +
-    '<button type="button" class="m-demo' + (s.guide.open ? ' on' : '') + '" data-act="guideToggle">Водич</button>' + bell(role, unread) + '</div>' +
+    '<div class="m-top">' + hamburger + '<span class="m-title">' + esc(current ? current[1] : 'Тренирај') + '</span>' + bell(role, unread) + '</div>' +
+    drawer(nav.map(([h, l, k]) => [h, l, k, k === 'notif' ? unread : 0]), active, who) +
     '<main class="app-main">' + content + '</main></div>';
 }
 

@@ -24,13 +24,33 @@ export const TRAINERS = [
 ];
 
 export const PARTNERS = [
-  { id: 'p1', name: 'Фит Зона Аеродром', category: 'Теретани', city: 'Скопје', offer: '−20% прв месец', code: 'TRENIRAJ20', featured: true, lat: 41.9870, lng: 21.4760 },
-  { id: 'p2', name: 'Фан Шоп Вардар', category: 'Фан шопови', city: 'Скопје', offer: '−10% на дресови', code: 'FAN10' },
-  { id: 'p3', name: 'Протеин Маркет', category: 'Суплементи', city: 'Онлајн', offer: '−15% на протеини', code: 'PROT15' },
-  { id: 'p4', name: 'Физио Плус', category: 'Физиотерапија', city: 'Битола', offer: 'Бесплатна проценка', code: 'FIZIO0' },
-  { id: 'p5', name: 'Спорт Опрема Охрид', category: 'Фан шопови', city: 'Охрид', offer: '−10% на патики', code: 'RUN10' },
-  { id: 'p6', name: 'Пауер Џим Тетово', category: 'Теретани', city: 'Тетово', offer: 'Бесплатен пробен ден', code: 'PROBA1' },
+  { id: 'p1', name: 'Фит Зона Аеродром', category: 'Теретани', city: 'Скопје', address: 'бул. Јане Сандански 12', hours: 'Пон–Пет 06–23 · Саб–Нед 08–20',
+    website: 'fitzona.mk', instagram: 'fitzona.aerodrom', phone: '070 123 456', email: 'info@fitzona.mk',
+    desc: 'Теретана од 800 м² со зона за кардио, слободни тегови и групни часови. Паркинг за членовите.',
+    offer: '−20% прв месец', code: 'TRENIRAJ20', featured: true, lat: 41.9870, lng: 21.4760 },
+  { id: 'p2', name: 'Фан Шоп Центар', category: 'Фан шопови', city: 'Скопје', address: 'ул. Македонија 5', hours: 'Пон–Саб 09–21',
+    website: 'fanshop-centar.mk', instagram: 'fanshop.centar', phone: '071 222 333', email: '',
+    desc: 'Дресови, шалови и опрема за навивачи. Печатење име и број на дрес за 1 ден.', offer: '−10% на дресови', code: 'FAN10', lat: 41.9965, lng: 21.4314 },
+  { id: 'p3', name: 'Протеин Маркет', category: 'Суплементи', city: 'Онлајн', address: '', hours: 'Нарачки 24/7 · достава за 1–2 дена',
+    website: 'proteinmarket.mk', instagram: 'proteinmarket.mk', phone: '', email: 'naracki@proteinmarket.mk',
+    desc: 'Протеини, креатин и витамини со достава низ цела Македонија.', offer: '−15% на протеини', code: 'PROT15' },
+  { id: 'p4', name: 'Физио Плус', category: 'Физиотерапија', city: 'Битола', address: 'ул. Широк Сокак 40', hours: 'Пон–Пет 08–19',
+    website: '', instagram: 'fizioplus.bt', phone: '075 444 555', email: 'fizioplus@mail.mk',
+    desc: 'Рехабилитација по спортски повреди, масажи и кинезитерапија.', offer: '', code: '', lat: 41.0310, lng: 21.3340 },
+  { id: 'p5', name: 'Спорт Опрема Охрид', category: 'Фан шопови', city: 'Охрид', address: 'ул. Туристичка 18', hours: 'Секој ден 09–22',
+    website: 'sportoprema-ohrid.mk', instagram: '', phone: '072 666 777', email: '',
+    desc: 'Патики за трчање, опрема за пливање и планинарење.', offer: '−10% на патики', code: 'RUN10', lat: 41.1150, lng: 20.8000 },
+  { id: 'p6', name: 'Пауер Џим Тетово', category: 'Теретани', city: 'Тетово', address: 'ул. Илинденска 101', hours: 'Пон–Саб 07–22',
+    website: '', instagram: 'powergym.tetovo', phone: '078 888 999', email: '',
+    desc: 'Теретана со борилачка сала и сауна.', offer: '', code: '', lat: 42.0080, lng: 20.9690 },
+  { id: 'p7', name: 'Базен Аква', category: 'Здравје и рекреација', city: 'Скопје', address: 'ул. Никола Карев 2', hours: 'Секој ден 07–21',
+    website: 'aqua-bazen.mk', instagram: 'aqua.bazen', phone: '02 3 111 222', email: '',
+    desc: 'Затворен базен 25 м, школа за пливање за возрасни.', offer: '', code: '', lat: 42.0010, lng: 21.4450 },
 ];
+
+// Демо бизнис-корисник (партнер) и неговата статистика
+export const PARTNER_STATS = { p1: { views: 1240, couponViews: 186, clicks: 94 } };
+export const PARTNER_CATEGORIES = ['Теретани', 'Фан шопови', 'Суплементи', 'Физиотерапија', 'Здравје и рекреација'];
 
 export const CHALLENGES = [
   { id: 'ch1', name: '30 дена движење', days: 30, paid: false, fee: 0, by: 't1', desc: 'Секој ден најмалку 30 минути активност.' },
@@ -94,3 +114,32 @@ export const TEMPLATES = [
 export const DAY_NAMES = ['Понеделник', 'Вторник', 'Среда', 'Четврток', 'Петок', 'Сабота', 'Недела'];
 export const DAY_SHORT = ['ПОН', 'ВТО', 'СРЕ', 'ЧЕТ', 'ПЕТ', 'САБ', 'НЕД'];
 export const SLOT_TIMES = ['08:00', '09:00', '10:00', '11:00', '12:00', '15:00', '16:00', '17:00', '18:00', '19:00'];
+
+// Примерни рецепти од тренерите
+export const SEED_RECIPES = [
+  { id: 'rc1', trainerId: 't1', name: 'Овесна каша со протеин', cat: 'Појадок', mins: 10, servings: 1, kcal: 420, protein: 32, carbs: 52, fat: 9,
+    ingredients: [['60 г', 'овесни снегулки'], ['250 мл', 'млеко или вода'], ['1 мерка', 'протеин (ванила)'], ['1', 'банана'], ['1 лажичка', 'путер од кикирики']],
+    steps: ['Свари ги снегулките со млекото 4–5 минути.', 'Тргни од оган и измешај го протеинот.', 'Стави исечена банана и путер од кикирики одозгора.'] },
+  { id: 'rc2', trainerId: 't1', name: 'Пилешко со ориз и зеленчук', cat: 'Ручек', mins: 30, servings: 2, kcal: 560, protein: 45, carbs: 60, fat: 12,
+    ingredients: [['400 г', 'пилешки гради'], ['150 г', 'ориз (сув)'], ['1', 'тиквичка'], ['1', 'црвена пиперка'], ['1 лажица', 'маслиново масло'], ['по вкус', 'сол, бибер, паприка']],
+    steps: ['Свари го оризот според упатството.', 'Исечи го месото на коцки, зачини и пропржи 8–10 минути.', 'Додади го зеленчукот и пржи уште 5 минути.', 'Сервирај со оризот. Втората порција е за утре.'] },
+  { id: 'rc3', trainerId: 't1', name: 'Грчки јогурт со бобинки', cat: 'Ужина', mins: 3, servings: 1, kcal: 210, protein: 18, carbs: 22, fat: 5,
+    ingredients: [['200 г', 'грчки јогурт'], ['80 г', 'бобинки (свежи или замрзнати)'], ['1 лажичка', 'мед'], ['10 г', 'ореви']],
+    steps: ['Стави го јогуртот во чинија.', 'Додади бобинки, мед и искршени ореви.'] },
+  { id: 'rc4', trainerId: 't3', name: 'Салата со туна и леб од интегрално брашно', cat: 'Вечера', mins: 10, servings: 1, kcal: 390, protein: 34, carbs: 30, fat: 14,
+    ingredients: [['1 конзерва', 'туна во сопствен сок'], ['1', 'домат'], ['½', 'краставица'], ['5–6', 'маслинки'], ['1 парче', 'интегрален леб']],
+    steps: ['Исечи го зеленчукот.', 'Измешај со оцедена туна и маслинки.', 'Зачини со лимон и малку маслиново масло.'] },
+];
+
+// Напредок на другите демо клиенти (тие секогаш го споделуваат)
+export const DEMO_PROGRESS = {
+  c2: { goal: 'Сила и маса', goalLabel: '+5 кг мускулна маса', level: 'Редовно тренира', injuries: '', data: [
+    { week: 1, weight: 72.0, waist: 80, workouts: 4 }, { week: 2, weight: 72.4, waist: 80, workouts: 4 }, { week: 3, weight: 72.9, waist: 81, workouts: 5 },
+    { week: 4, weight: 73.1, waist: 81, workouts: 3 }, { week: 5, weight: 73.8, waist: 81, workouts: 5 }, { week: 6, weight: 74.2, waist: 82, workouts: 4 } ] },
+  c3: { goal: 'Сила и маса', goalLabel: 'Бенч прес 100 кг', level: 'Напреден', injuries: 'Лево рамо — без тешки потисоци над глава', data: [
+    { week: 1, weight: 88.0, waist: 92, workouts: 4 }, { week: 2, weight: 88.3, waist: 92, workouts: 4 }, { week: 3, weight: 88.1, waist: 91, workouts: 4 },
+    { week: 4, weight: 88.6, waist: 91, workouts: 5 }, { week: 5, weight: 88.9, waist: 91, workouts: 5 }, { week: 6, weight: 89.0, waist: 90, workouts: 5 } ] },
+  c4: { goal: 'Полумаратон', goalLabel: '21 км под 2 часа', level: 'Малку тренира', injuries: '', data: [
+    { week: 1, weight: 61.0, waist: 70, workouts: 3 }, { week: 2, weight: 60.6, waist: 70, workouts: 3 }, { week: 3, weight: 60.5, waist: 69, workouts: 4 },
+    { week: 4, weight: 60.1, waist: 69, workouts: 4 }, { week: 5, weight: 59.8, waist: 68, workouts: 2 }, { week: 6, weight: 59.6, waist: 68, workouts: 4 } ] },
+};

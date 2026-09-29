@@ -1,9 +1,10 @@
 // Страни за најавен тренер.
 import * as store from '../store.js';
-import { DEMO_CLIENTS, TEMPLATES, DAY_SHORT, DAY_NAMES, SPORTS, SLOT_TIMES } from '../data.js';
-import { esc, initials, appLayout, toast, modal, closeModal, chipRow } from '../ui.js';
+import { DEMO_CLIENTS, TEMPLATES, DAY_SHORT, DAY_NAMES, SPORTS, SLOT_TIMES, DEMO_PROGRESS } from '../data.js';
+import { esc, initials, appLayout, toast, modal, closeModal, chipRow, lineChart } from '../ui.js';
 import { chatBubbles, composer, send, attachVideo, scrollChat } from './chat.js';
 import { shortName } from './public.js';
+import { recipeActions } from './recipes.js';
 
 const tid = () => store.get().trainerId;
 
@@ -99,7 +100,7 @@ export const clients = {
       body = '<div class="table"><div class="tr th"><span>КЛИЕНТ</span><span>ЦЕЛ И НАПРЕДОК</span><span>ТИП</span><span>СЛЕДЕН ТЕРМИН</span><span></span></div>' +
         (list.length ? list.map((c) => '<div class="tr"><span class="row gap-s"><span class="avatar">' + initials(c.name) + '</span><span><span class="strong">' + esc(c.name) + '</span><br><span class="muted small">од ' + esc(c.since) + '</span></span></span>' +
           '<span class="stack-s"><span class="strong small">' + esc(c.goal) + '</span><span class="bar thin"><span style="width:' + c.progress + '%"></span></span></span><span class="muted">' + esc(c.type) + '</span><span class="strong">' + nextFor(c.id) + '</span>' +
-          '<a class="btn btn-ghost btn-sm" href="#/t/messages/' + c.id + '">Отвори</a></div>').join('') : '<div class="muted pad">Нема клиенти.</div>') + '</div>';
+          '<a class="btn btn-ghost btn-sm" href="#/t/clients/' + c.id + '">Напредок</a></div>').join('') : '<div class="muted pad">Нема клиенти.</div>') + '</div>';
     } else if (cState.tab === 'Барања') {
       body = '<section class="card">' + requestRows(reqs) + '</section>';
     } else {
@@ -134,7 +135,7 @@ export const messages = {
       return '<a class="thread' + (x.id === c.id ? ' on' : '') + '" href="#/t/messages/' + x.id + '"><span class="avatar">' + initials(x.name) + '</span><span class="grow ellipsis"><span class="strong">' + esc(x.name) + '</span><span class="muted small ellipsis">' + esc(last ? last.text : 'Нема пораки') + '</span></span>' + (unread ? '<span class="dot-accent"></span>' : '') + '</a>'; }).join('');
     const content = '<div class="chat-layout two"><section class="threads"><h1 class="h2 upper">Пораки</h1>' + threads + '</section>' +
       '<section class="chat"><header class="chat-head"><div class="grow"><div class="strong">' + esc(c.name) + '</div><div class="muted small">' + esc(c.goal) + ' · ' + esc(c.type.toLowerCase()) + '</div></div>' +
-        '<a class="btn btn-ghost btn-sm" href="#/t/plans?c=' + c.id + '">Прати план</a><button type="button" class="btn btn-accent btn-sm" data-act="videoCall">Видео повик</button></header>' +
+        '<a class="btn btn-accent btn-sm" href="#/t/clients/' + c.id + '">Напредок</a><a class="btn btn-ghost btn-sm" href="#/t/plans?c=' + c.id + '">Прати план</a><a class="btn btn-ghost btn-sm" href="#/t/recipes?c=' + c.id + '">Прати рецепт</a><button type="button" class="btn btn-accent btn-sm" data-act="videoCall">Видео повик</button></header>' +
         '<div class="chat-body">' + chatBubbles(store.thread(c.id, tid()), tid()) + '</div>' + composer('sendMsg', 'attach') + '</section></div>';
     return appLayout('trainer', 'messages', content, { full: true });
   },
@@ -143,6 +144,7 @@ export const messages = {
     sendMsg(form, ev, cur) { const cid = activeClient(cur); if (form.text.value.trim()) store.markStep('msg'); send(cid, tid(), tid(), form.text.value, cid); },
     attach(el, ev, cur) { attachVideo(activeClient(cur), tid(), tid()); },
     videoCall() { toast('Во вистинската апликација тука се отвора видео повик.'); },
+    ...recipeActions,
   },
 };
 function activeClient(cur) { const list = myClients(); return (list.find((x) => x.id === cur.params.id) || list[0]).id; }
@@ -160,9 +162,16 @@ export const calendar = {
         return '<button type="button" class="ev ' + (b.type === 'Во живо' ? 'live' : 'online') + '" style="top:' + ((h - 8) * 44 + 2) + 'px" data-act="evOpen" data-val="' + b.id + '"><span class="strong">' + esc(b.clientName) + '</span><span class="small">' + b.time + '</span></button>'; }).join('');
       return '<div class="cal-col' + (i === 6 ? ' closed' : '') + '">' + evs + '</div>';
     }).join('');
+    const list = DAY_NAMES.map((dn, i) => {
+      const items = bookings.filter((b) => b.day === i).sort((a, b) => a.time.localeCompare(b.time));
+      if (!items.length && i !== todayIdx) return '';
+      return '<section class="cal-day' + (i === todayIdx ? ' today' : '') + '"><h3>' + dn.toUpperCase() + (i === todayIdx ? ' · ДЕНЕС' : '') + '</h3>' +
+        (items.length ? items.map((b) => '<button type="button" class="cal-item" data-act="evOpen" data-val="' + b.id + '"><span class="cal-time">' + b.time + '</span><span class="cal-dot' + (b.type === 'Во живо' ? '' : ' online') + '"></span><span class="grow"><span class="strong block">' + esc(b.clientName) + '</span><span class="muted small">' + esc(b.type) + '</span></span><span class="muted">›</span></button>').join('') : '<p class="muted small">Нема термини.</p>') + '</section>';
+    }).join('');
     const content = '<div class="page-head"><h1 class="display-s">Календар</h1><span class="muted strong">Оваа недела</span></div>' +
-      '<div class="legend"><span><i class="lg live"></i>Во живо</span><span><i class="lg online"></i>Онлајн / видео</span><span><i class="lg closed"></i>Неработен ден</span></div>' +
-      '<div class="booking"><div class="cal grow"><div class="cal-head"><span></span>' + DAY_SHORT.map((d, i) => '<span class="' + (i === todayIdx ? 'accent' : '') + '">' + d + '</span>').join('') + '</div>' +
+      '<div class="cal-list m-show">' + list + '</div>' +
+      '<div class="legend hide-m"><span><i class="lg live"></i>Во живо</span><span><i class="lg online"></i>Онлајн / видео</span><span><i class="lg closed"></i>Неработен ден</span></div>' +
+      '<div class="booking"><div class="cal grow hide-m"><div class="cal-head"><span></span>' + DAY_SHORT.map((d, i) => '<span class="' + (i === todayIdx ? 'accent' : '') + '">' + d + '</span>').join('') + '</div>' +
         '<div class="cal-body"><div class="cal-hours">' + hours.map((h) => '<span>' + String(h).padStart(2, '0') + '</span>').join('') + '</div>' + cols + '</div></div>' +
       '<aside class="stack w-300"><button type="button" class="btn btn-accent" data-act="addSlot">+ ДОДАДИ ТЕРМИН</button>' +
         '<section class="card"><h2 class="eyebrow muted">РАБОТНО ВРЕМЕ</h2><div class="kv"><span>Пон – Пет</span><span class="strong">08 – 20</span></div><div class="kv"><span>Сабота</span><span class="strong">08 – 12</span></div><div class="kv"><span>Недела</span><span class="muted">Слободно</span></div></section>' +
@@ -238,7 +247,7 @@ export const plans = {
       const count = currentRows().reduce((n, d) => n + d.length, 0);
       store.markStep('plan');
       store.addMessage(cid, tid(), { from: tid(), kind: 'plan', text: planState.name + ' · ' + currentRows().length + ' дена, ' + count + ' вежби' });
-      toast('Планот е испратен на ' + c.name + '.');
+      toast('Планот е испратен: ' + c.name);
     },
   },
 };
@@ -276,6 +285,71 @@ export const profile = {
       store.markStep('profile');
       setOverride({ name: form.name.value, bio: form.bio.value, type: form.type.value, pricesPublic: form.pricesPublic.checked, price: num(form.price.value), onlinePrice: num(form.onlinePrice.value), city: city.trim() || 'Скопје', area: area.join(',').trim() });
       toast('Профилот е зачуван. Клиентите веќе ги гледаат промените.');
+    },
+  },
+};
+
+
+// ---------- Детали за клиент: напредок ----------
+function clientProgress(id) {
+  const s = store.get();
+  if (id === s.client.id) {
+    return { shared: s.client.share.progress, share: s.client.share, goal: s.client.goal, goalLabel: '−' + s.client.goalKg + ' кг', level: 'Почетник', injuries: 'Болки во долниот дел на грбот понекогаш', data: s.progress, comment: s.trainerComment };
+  }
+  const d = DEMO_PROGRESS[id];
+  if (d) return { shared: true, share: { goal: true, level: true, injuries: true, progress: true }, ...d, comment: (s.clientComments || {})[id] || '' };
+  return { shared: false, share: {}, data: [] };
+}
+
+let cMetric = 'weight';
+export const clientDetail = {
+  title: 'Напредок на клиент',
+  render(p) {
+    const c = clientInfo(p.id);
+    const pr = clientProgress(p.id);
+    const s = store.get();
+    const next = s.bookings.filter((b) => b.clientId === p.id && b.trainerId === tid()).sort((a, b) => a.day - b.day)[0];
+    const head = '<div class="page-head"><div class="row gap-s"><a class="btn btn-ghost btn-icon" href="#/t/clients" aria-label="Назад кон клиенти">←</a><span class="avatar lg accent-bg">' + initials(c.name) + '</span>' +
+      '<div><h1 class="display-s">' + esc(c.name) + '</h1><div class="muted small">' + esc(c.type || '') + ' · од ' + esc(c.since || '') + (next ? ' · следен термин ' + DAY_SHORT[next.day] + ' ' + next.time : '') + '</div></div></div></div>' +
+      '<div class="row gap-s wrap"><a class="btn btn-ghost btn-sm" href="#/t/messages/' + p.id + '">Порака</a><a class="btn btn-ghost btn-sm" href="#/t/plans?c=' + p.id + '">Прати план</a><a class="btn btn-ghost btn-sm" href="#/t/recipes?c=' + p.id + '">Прати рецепт</a></div>';
+    if (!pr.data.length || !pr.shared) {
+      return appLayout('trainer', 'clients', head + '<div class="empty">' + (pr.data.length ? 'Клиентот избрал да не го споделува напредокот.' : 'Клиентот сè уште нема внесено напредок.') + '<br><button type="button" class="btn btn-accent btn-sm" style="margin-top:12px" data-act="askProgress" data-val="' + p.id + '">Замоли го да внесе напредок</button></div>');
+    }
+    const data = pr.data;
+    const first = data[0], last = data[data.length - 1];
+    const d = (k) => last[k] - first[k];
+    const sign = (v, dec = 1) => (v > 0 ? '+' : v < 0 ? '−' : '±') + Math.abs(v).toFixed(dec);
+    const avgW = (data.reduce((a, x) => a + x.workouts, 0) / data.length).toFixed(1);
+    const m = { weight: ['Килажа', 'кг'], waist: ['Струк', 'cm'], workouts: ['Тренинзи', ''] };
+    const vals = data.map((x) => x[cMetric]);
+    const info = [];
+    if (pr.share.goal) info.push(['Цел', esc(pr.goal) + ' · ' + esc(pr.goalLabel)]);
+    if (pr.share.level) info.push(['Ниво', esc(pr.level)]);
+    if (pr.share.injuries && pr.injuries) info.push(['Повреди', esc(pr.injuries)]);
+    const content = head +
+      '<div class="grid-4 stats-row4"><div class="card accent-card"><div class="eyebrow">КИЛАЖА</div><div class="display-xs">' + last.weight.toFixed(1) + ' кг</div><div class="small strong">' + sign(d('weight')) + ' кг за ' + data.length + ' нед.</div></div>' +
+        '<div class="card"><div class="eyebrow muted">СТРУК</div><div class="display-xs">' + last.waist + ' cm</div><div class="muted small">' + sign(d('waist'), 0) + ' cm</div></div>' +
+        '<div class="card"><div class="eyebrow muted">ТРЕНИНЗИ</div><div class="display-xs">' + avgW + '</div><div class="muted small">просечно неделно</div></div>' +
+        '<div class="card"><div class="eyebrow muted">ЦЕЛ</div><div class="display-xs">' + c.progress + '%</div><div class="bar thin"><span style="width:' + c.progress + '%"></span></div></div></div>' +
+      '<div class="booking"><div class="stack grow"><section class="card"><div class="chips">' + Object.entries(m).map(([k, v]) => '<button type="button" class="chip' + (k === cMetric ? ' on' : '') + '" data-act="cMetric" data-val="' + k + '">' + v[0] + '</button>').join('') + '</div>' +
+        lineChart(vals) + '<div class="axis">' + data.map((x) => '<span>Н' + x.week + '</span>').join('') + '</div></section>' +
+        '<section class="card"><h2 class="eyebrow muted">ВНЕСУВАЊА</h2><div class="ptable"><div class="ptr th"><span>НЕДЕЛА</span><span>КИЛАЖА</span><span>СТРУК</span><span>ТРЕНИНЗИ</span></div>' +
+          data.slice().reverse().map((x, i, arr) => { const prev = arr[i + 1]; const dw = prev ? x.weight - prev.weight : 0;
+            return '<div class="ptr"><span class="strong">Нед ' + x.week + '</span><span>' + x.weight.toFixed(1) + (prev ? ' <span class="' + (dw <= 0 ? 'down' : 'up') + '">' + sign(dw) + '</span>' : '') + '</span><span>' + x.waist + '</span><span>' + x.workouts + '</span></div>'; }).join('') + '</div></section></div>' +
+      '<aside class="stack w-330">' + (info.length ? '<section class="card"><h2 class="eyebrow muted">ЗА КЛИЕНТОТ</h2>' + info.map(([k, v]) => '<div class="kv"><span class="muted">' + k + '</span><span class="strong right">' + v + '</span></div>').join('') + '<p class="muted small">Клиентот одлучува што споделува.</p></section>' : '') +
+        '<form class="card stack-s" data-submit="saveComment"><input type="hidden" name="cid" value="' + p.id + '"><label class="field">Коментар за напредокот<textarea name="text" rows="4" placeholder="Што оди добро, што да се смени…">' + esc(pr.comment || '') + '</textarea></label><button type="submit" class="btn btn-accent">ИСПРАТИ КОМЕНТАР</button><p class="muted small">Клиентот го гледа коментарот во „Напредок“ и добива известување.</p></form></aside></div>';
+    return appLayout('trainer', 'clients', content);
+  },
+  actions: {
+    cMetric(el) { cMetric = el.dataset.val; store.refresh(); },
+    askProgress(el) { store.addMessage(el.dataset.val, tid(), { from: tid(), text: 'Те молам внеси го напредокот за оваа недела (килажа и мерки) за да го следиме заедно.' }); toast('Пораката е испратена.'); },
+    saveComment(form) {
+      const cid = form.cid.value; const text = form.text.value.trim(); if (!text) return;
+      const s = store.get();
+      store.notify(cid, 'Марија остави коментар за твојот напредок', '#/c/progress');
+      if (cid === s.client.id) store.set({ trainerComment: text });
+      else store.set((st) => ({ ...st, clientComments: { ...(st.clientComments || {}), [cid]: text } }));
+      toast('Коментарот е испратен.');
     },
   },
 };

@@ -1,10 +1,12 @@
 // Главен влез: рутирање, прикажување и настани.
 import * as store from './store.js';
-import { closeModal, toast, modal, esc } from './ui.js';
+import { closeModal, toast, modal, esc, hooks } from './ui.js';
 import * as pub from './pages/public.js';
 import * as client from './pages/client.js';
 import * as trainer from './pages/trainer.js';
 import * as social from './pages/social.js';
+import * as partner from './pages/partner.js';
+import * as recipes from './pages/recipes.js';
 
 // Чекори на водичот. Секој чекор се штиклира сам кога ќе се направи дејството.
 const STEPS = {
@@ -12,6 +14,7 @@ const STEPS = {
     ['req', 'Прифати ново барање од клиент', '#/t/clients?tab=req', 'trainer'],
     ['msg', 'Одговори на порака од клиент', '#/t/messages/c2', 'trainer'],
     ['plan', 'Испрати план за тренинг', '#/t/plans', 'trainer'],
+    ['recipe', 'Испрати рецепт на клиент', '#/t/recipes', 'trainer'],
     ['cal', 'Додај термин во календарот', '#/t/calendar', 'trainer'],
     ['post', 'Објави совет за клиентите', '#/t/posts', 'trainer'],
     ['profile', 'Смени цена или опис во профилот', '#/t/profile', 'trainer'],
@@ -26,17 +29,20 @@ const STEPS = {
   ],
 };
 let welcomeShown = false;
+hooks.guideLabel = () => { const s = store.get(); const [d, n] = guideProgress(s); return (s.guide.open ? 'Скриј водич ' : 'Водич ') + d + '/' + n; };
 
 const routes = [
-  ['/', pub.home], ['/map', pub.map], ['/trainer/:id', pub.trainerProfile], ['/signup', pub.signup],
+  ['/', pub.home], ['/map', pub.map], ['/trainer/:id', pub.trainerProfile], ['/partner/:id', pub.partnerProfile], ['/signup', pub.signup],
   ['/quiz', pub.quiz], ['/partners', pub.partners], ['/challenges', pub.challenges],
   ['/c/home', client.home, 'client'], ['/c/messages', client.messages, 'client'], ['/c/messages/:id', client.messages, 'client'],
   ['/c/booking', client.booking, 'client'], ['/c/progress', client.progress, 'client'], ['/c/challenges', client.challenges, 'client'],
   ['/c/partners', client.partners, 'client'], ['/c/settings', client.settings, 'client'],
-  ['/t/home', trainer.home, 'trainer'], ['/t/clients', trainer.clients, 'trainer'], ['/t/messages', trainer.messages, 'trainer'],
+  ['/t/home', trainer.home, 'trainer'], ['/t/clients', trainer.clients, 'trainer'], ['/t/clients/:id', trainer.clientDetail, 'trainer'], ['/t/messages', trainer.messages, 'trainer'],
   ['/t/messages/:id', trainer.messages, 'trainer'], ['/t/calendar', trainer.calendar, 'trainer'], ['/t/plans', trainer.plans, 'trainer'],
   ['/t/profile', trainer.profile, 'trainer'], ['/t/posts', social.trainerPosts, 'trainer'], ['/t/notifications', social.trainerNotifications, 'trainer'],
   ['/c/feed', social.clientFeed, 'client'], ['/c/notifications', social.clientNotifications, 'client'],
+  ['/p/home', partner.home, 'partner'], ['/p/profile', partner.profile, 'partner'],
+  ['/t/recipes', recipes.trainerRecipes, 'trainer'], ['/c/recipes', recipes.clientRecipes, 'client'],
 ];
 
 let current = null;
@@ -64,13 +70,14 @@ function render(scrollTop) {
   const r = parse();
   const s = store.get();
   if (r.role && s.role !== r.role) {
-    location.hash = s.role === 'trainer' ? '#/t/home' : s.role === 'client' ? '#/c/home' : '#/signup' + (r.role === 'trainer' ? '?role=trainer' : '');
+    location.hash = s.role === 'trainer' ? '#/t/home' : s.role === 'client' ? '#/c/home' : s.role === 'partner' ? '#/p/home' : '#/signup' + (r.role !== 'client' ? '?role=' + r.role : '');
     return;
   }
   const same = current && current.path === r.path;
   current = r;
   const focusId = document.activeElement && document.activeElement.id;
   const y = window.scrollY;
+  document.body.classList.remove('menu-open');
   root.innerHTML = r.page.render(r.params, r.query) + guidePanel(s) + demoBar(s);
   document.documentElement.style.setProperty('--accent', s.accent);
   if (r.page.mount) r.page.mount(root, r.params, r.query);
@@ -94,7 +101,7 @@ function demoBar(s) {
   const btn = (role, label) => '<button type="button" data-act="demoRole" data-val="' + role + '" class="d-only ' + (s.role === (role || null) ? 'on' : '') + '">' + label + '</button>';
   const [d, n] = guideProgress(s);
   return '<div class="demobar" role="group" aria-label="Демо контроли"><span class="demobar-tag">ДЕМО</span>' +
-    btn('trainer', 'Тренер') + btn('client', 'Клиент') + btn('', 'Гостин') +
+    btn('trainer', 'Тренер') + btn('client', 'Клиент') + btn('partner', 'Партнер') + btn('', 'Гостин') +
     '<button type="button" class="m-only on" data-act="demoMenu">' + roleLabel(s.role) + ' ▾</button>' +
     '<button type="button" data-act="guideToggle" class="guide-btn' + (s.guide.open ? ' on' : '') + '" aria-expanded="' + s.guide.open + '">Водич ' + d + '/' + n + '</button>' +
     '<button type="button" class="d-only" data-act="demoReset" title="Врати ги пробните податоци" aria-label="Врати ги пробните податоци">↺</button></div>';
@@ -148,8 +155,10 @@ const globalActions = {
     if (role === 'client' && store.get().role === 'trainer') store.markStep('asClient');
     store.set({ role });
     closeModal();
-    location.hash = role === 'trainer' ? '#/t/home' : role === 'client' ? '#/c/home' : '#/';
+    location.hash = role === 'trainer' ? '#/t/home' : role === 'client' ? '#/c/home' : role === 'partner' ? '#/p/home' : '#/';
   },
+  menuOpen() { document.body.classList.add('menu-open'); const f = document.querySelector('.drawer-link.on, .drawer-link'); if (f) f.focus(); },
+  menuClose() { document.body.classList.remove('menu-open'); },
   demoReset() {
     if (confirm('Да се вратат сите пробни податоци на почеток?')) { closeModal(); store.reset(); welcomeShown = false; location.hash = '#/'; toast('Демото е ресетирано'); }
   },
@@ -159,7 +168,7 @@ const globalActions = {
     modal('<div class="eyebrow accent">ДЕМО</div><h2 class="h2">Гледај како</h2><div class="stack-s">' + b('trainer', 'Тренер', 'Марија Стојанова, фитнес') + b('client', 'Клиент', 'Ана Костова') + b('', 'Гостин', 'Непријавен посетител') + '</div>' +
       '<button type="button" class="btn btn-ghost btn-sm" data-act="demoReset">↺ Врати ги пробните податоци</button>');
   },
-  guideToggle() { store.set((s) => ({ ...s, guide: { ...s.guide, seen: true, open: !s.guide.open } })); },
+  guideToggle() { document.body.classList.remove('menu-open'); store.set((s) => ({ ...s, guide: { ...s.guide, seen: true, open: !s.guide.open } })); },
   guideExpand() { store.set((s) => ({ ...s, guide: { ...s.guide, expanded: !s.guide.expanded } })); },
   guideTrack(el) { store.set((s) => ({ ...s, guide: { ...s.guide, track: el.dataset.val, open: true } })); },
   guideGo(el) { goStep(STEPS[store.get().guide.track][Number(el.dataset.val)]); },
@@ -205,6 +214,7 @@ document.addEventListener('submit', (ev) => {
 });
 document.addEventListener('keydown', (ev) => {
   if (ev.key !== 'Escape') return;
+  document.body.classList.remove('menu-open');
   const welcomeOpen = document.querySelector('#modal [data-act="welcome"]');
   closeModal();
   if (welcomeOpen) store.set((s) => ({ ...s, guide: { ...s.guide, seen: true, open: false } }));
