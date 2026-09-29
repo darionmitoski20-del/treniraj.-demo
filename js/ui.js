@@ -1,5 +1,6 @@
 // Помошни функции за HTML и заеднички делови од изгледот.
-import { get, unreadCount } from './store.js';
+import { features, kindLabels } from './kinds.js';
+import { get, unreadCount, trainer } from './store.js';
 
 export function esc(v) {
   return String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -108,9 +109,18 @@ const PARTNER_NAV = [
   ['#/p/home', 'Преглед', 'home'], ['#/p/profile', 'Уреди профил', 'edit'], ['#/partner/p1', 'Мој јавен профил', 'view'], ['#/partners', 'Сите партнери', 'all'],
 ];
 
+function trainerNav(s) {
+  const f = features(trainerOf(s));
+  let nav = TRAINER_NAV.filter(([, , k]) => k !== 'recipes' || f.recipes).map(([h, l, k]) => [h, k === 'plans' ? f.plansLabel : l, k]);
+  if (f.recipesFirst) {
+    const r = nav.find(([, , k]) => k === 'recipes'); const pi = nav.findIndex(([, , k]) => k === 'plans');
+    nav = nav.filter((x) => x !== r); nav.splice(pi, 0, r);
+  }
+  return nav;
+}
+
 function trainerOf(s) {
-  const t = (s.customTrainers || []).find((x) => x.id === s.trainerId) || { name: 'Марија Стојанова', founder: true };
-  return { ...t, ...((s.trainerOverrides || {})[s.trainerId] || {}) };
+  return trainer(s.trainerId) || { name: 'Марија Стојанова', founder: true };
 }
 
 export function bell(role, n) {
@@ -122,7 +132,7 @@ export function bell(role, n) {
 
 // Изглед за најавен корисник: странично мени на компјутер, хамбургер мени на телефон
 export function appLayout(role, active, content, opts = {}) {
-  const nav = role === 'trainer' ? TRAINER_NAV : role === 'partner' ? PARTNER_NAV.map(([h, l, k]) => [k === 'view' ? '#/partner/' + get().partnerId : h, l, k]) : CLIENT_NAV;
+  const nav = role === 'trainer' ? trainerNav(get()) : role === 'partner' ? PARTNER_NAV.map(([h, l, k]) => [k === 'view' ? '#/partner/' + get().partnerId : h, l, k]) : CLIENT_NAV;
   const s = get();
   const unread = role === 'partner' ? 0 : unreadCount();
   const items = nav.map(([href, label, key]) => '<a href="' + href + '" class="side-link' + (active === key ? ' on' : '') + '">' + label +
@@ -132,7 +142,7 @@ export function appLayout(role, active, content, opts = {}) {
     const tr = trainerOf(s);
     extra = tr.founder ? '<div class="side-card"><div class="eyebrow accent">ОСНОВАЧ · −50%</div><div class="muted small">Претплата: 500 ден. / месец</div></div>'
       : '<div class="side-card"><div class="eyebrow accent">ПРОБЕН ПЕРИОД · 30 ДЕНА</div><div class="muted small">Потоа 1.000 ден. / месец</div></div>';
-    who = '<span class="avatar accent-bg">' + initials(tr.name) + '</span><span><span class="strong block">' + esc(tr.name) + '</span><span class="muted small">Тренер' + (tr.founder ? ' · Основач' : '') + '</span></span>';
+    who = '<span class="avatar accent-bg">' + initials(tr.name) + '</span><span><span class="strong block">' + esc(tr.name) + '</span><span class="muted small">' + esc(kindLabels(tr)[0]) + (tr.founder ? ' · Основач' : '') + '</span></span>';
   } else if (role === 'partner') {
     extra = '<div class="side-card"><div class="eyebrow accent">ПАРТНЕР · АКТИВЕН</div><div class="muted small">Месечна претплата</div></div>';
     who = '<span class="avatar accent-bg">ФЗ</span><span><span class="strong block">Фит Зона Аеродром</span><span class="muted small">Партнер · Теретана</span></span>';

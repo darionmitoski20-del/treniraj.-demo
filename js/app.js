@@ -1,4 +1,5 @@
 // Главен влез: рутирање, прикажување и настани.
+import { features } from './kinds.js';
 import * as store from './store.js';
 import { closeModal, toast, modal, esc, hooks } from './ui.js';
 import * as pub from './pages/public.js';
@@ -99,10 +100,18 @@ function render(scrollTop) {
   document.title = (title ? title + ' · ' : '') + 'Тренирај';
 }
 
+function stepsOf(s) {
+  const base = STEPS[s.guide.track];
+  if (s.guide.track !== 'trainer') return base;
+  const f = features(store.trainer(s.trainerId) || {});
+  const planText = { gym: 'Испрати план за вежби', session: 'Испрати план за тренинг', meal: 'Испрати оброчен план', flow: 'Испрати секвенца' }[f.planKinds[0]];
+  return base.filter(([id]) => id !== 'recipe' || f.recipes).map((st) => (st[0] === 'plan' ? [st[0], planText, st[2], st[3]] : st));
+}
+
 function roleLabel(role) { return role === 'trainer' ? 'Тренер' : role === 'client' ? 'Клиент' : 'Гостин'; }
 
 function guideProgress(s) {
-  const steps = STEPS[s.guide.track];
+  const steps = stepsOf(s);
   return [steps.filter(([id]) => s.guide.done[id]).length, steps.length];
 }
 
@@ -118,7 +127,7 @@ function demoBar(s) {
 
 function guidePanel(s) {
   if (!s.guide.seen || !s.guide.open) return '';
-  const steps = STEPS[s.guide.track];
+  const steps = stepsOf(s);
   const [d, n] = guideProgress(s);
   const firstOpen = steps.findIndex(([id]) => !s.guide.done[id]);
   const other = s.guide.track === 'trainer' ? 'client' : 'trainer';
@@ -180,7 +189,7 @@ const globalActions = {
   guideToggle() { document.body.classList.remove('menu-open'); store.set((s) => ({ ...s, guide: { ...s.guide, seen: true, open: !s.guide.open } })); },
   guideExpand() { store.set((s) => ({ ...s, guide: { ...s.guide, expanded: !s.guide.expanded } })); },
   guideTrack(el) { store.set((s) => ({ ...s, guide: { ...s.guide, track: el.dataset.val, open: true } })); },
-  guideGo(el) { goStep(STEPS[store.get().guide.track][Number(el.dataset.val)]); },
+  guideGo(el) { goStep(stepsOf(store.get())[Number(el.dataset.val)]); },
   welcome(el) {
     const track = el.dataset.val;
     closeModal();

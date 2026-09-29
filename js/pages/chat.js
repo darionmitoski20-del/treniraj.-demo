@@ -1,4 +1,5 @@
 // Разговор меѓу клиент и тренер — заеднички за двете страни.
+import { planKindOf } from '../kinds.js';
 import * as store from '../store.js';
 import { esc, initials, icon, toast } from '../ui.js';
 
@@ -37,7 +38,7 @@ export function chatBubbles(msgs, meId) {
       if (!pl) return '<div class="msg-file ' + (mine ? 'mine' : '') + '">' + icon.file + '<span class="strong">' + esc(m.text) + '</span></div>';
       const pg = store.planProgress(pl);
       return '<a class="msg-recipe ' + (mine ? 'mine' : '') + '" href="' + (pl.trainerId === meId ? '#/t/plan/' : '#/c/plan/') + pl.id + '"><span class="msg-recipe-ic" aria-hidden="true">' + icon.file + '</span><span class="grow"><span class="eyebrow accent block">ПЛАН</span><span class="strong block">' + esc(pl.name) + '</span>' +
-        '<span class="muted small">' + pg.done + ' од ' + pg.total + ' вежби одработени</span></span><span class="accent strong">Отвори →</span></a>';
+        '<span class="muted small">' + pg.done + ' од ' + pg.total + ' ' + planKindOf(pl).item + ' одработени</span></span><span class="accent strong">Отвори →</span></a>';
     }
     return '<div class="bubble ' + (mine ? 'mine' : '') + '">' + esc(m.text) + '<span class="bubble-time">' + timeLabel(m.at) + '</span></div>';
   }).join('');

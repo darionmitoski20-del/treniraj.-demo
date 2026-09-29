@@ -1,4 +1,5 @@
 // Страни за најавен клиент.
+import { planKindOf } from '../kinds.js';
 import * as store from '../store.js';
 import { CHALLENGES, LEADERBOARD_OTHERS, DAY_NAMES, DAY_SHORT, SLOT_TIMES } from '../data.js';
 import { esc, initials, appLayout, toast, modal, closeModal, lineChart, chipRow, stars, den } from '../ui.js';
@@ -43,7 +44,7 @@ export const home = {
     const allPlans = store.plansFor(c.id);
     const activePlan = allPlans.find((pl) => { const g = store.planProgress(pl); return g.done < g.total; }) || allPlans[0];
     const planCard = activePlan ? (function () { const g = store.planProgress(activePlan); const pct = Math.round((g.done / Math.max(g.total, 1)) * 100);
-      return '<a class="card light w-320" href="#/c/plan/' + activePlan.id + '"><div class="eyebrow">АКТИВЕН ПЛАН</div><div class="h3 upper">' + esc(activePlan.name) + '</div><div class="bar"><div style="width:' + pct + '%"></div></div><div class="small strong">' + g.done + ' од ' + g.total + ' вежби · ' + (g.done === g.total ? 'завршен ✓' : 'отвори и штиклирај →') + '</div></a>'; })() : '';
+      return '<a class="card light w-320" href="#/c/plan/' + activePlan.id + '"><div class="eyebrow">АКТИВЕН ПЛАН</div><div class="h3 upper">' + esc(activePlan.name) + '</div><div class="bar"><div style="width:' + pct + '%"></div></div><div class="small strong">' + g.done + ' од ' + g.total + ' ' + planKindOf(activePlan).item + ' · ' + (g.done === g.total ? 'завршен ✓' : 'отвори и штиклирај →') + '</div></a>'; })() : '';
     const extraRow = (pkgCards || planCard) ? '<div class="row gap stack-m">' + pkgCards + planCard + '</div>' : '';
     const unreadFor = (tid) => { const th = store.thread(c.id, tid); const lastMsg = th[th.length - 1]; return lastMsg && lastMsg.from !== c.id; };
     const content = '<div class="page-head"><div><div class="muted small strong">' + todayLabel() + '</div><h1 class="display-s">Здраво, ' + esc(c.name.split(' ')[0]) + '</h1></div>' +

@@ -719,3 +719,15 @@ a.msg-recipe { text-decoration: none; }
   .list-row.req .grow { flex: 1 1 calc(100% - 60px); }
   .list-row.req .btn { flex: 1 1 0; }
 }
+
+/* v5: типови тренери */
+.kind-card { display: flex; align-items: center; gap: 14px; width: 100%; text-align: left; padding: 16px; min-height: 64px; background: var(--card, #121712); border: 1px solid var(--line2); border-radius: 16px; color: var(--text); cursor: pointer; font: inherit; }
+.kind-card.on { border-color: var(--accent); background: rgba(255, 90, 31, .10); }
+.kind-card.on .gcheck { background: var(--accent); color: #0B0F0B; border-color: var(--accent); }
+.kind-card .block { display: block; }
+@media (max-width: 760px) {
+  .plan-table.pk-x .tr > :nth-child(3) { grid-column: 2; grid-row: 2; }
+  .plan-table.pk-x .tr > :nth-child(5) { grid-column: 3 / 5; grid-row: 2; }
+  .plan-table.pk-x .tr > :nth-child(4) { grid-column: 2 / 5; grid-row: 3; }
+  .plan-table.pk-x .tr > :nth-child(6) { grid-row: 4; }
+}

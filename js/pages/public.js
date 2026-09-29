@@ -1,4 +1,5 @@
 // Јавни страни: почетна, мапа, профил на тренер, регистрација, квиз, партнери, предизвици.
+import { kindLabels } from '../kinds.js';
 import * as store from '../store.js';
 import { SPORTS, CITIES, CHALLENGES, LEADERBOARD_OTHERS, PARTNER_CATEGORIES } from '../data.js';
 import { esc, initials, icon, publicLayout, appLayout, chipRow, photo, stars, priceLabel, typeLabel, toast, modal, closeModal } from '../ui.js';
@@ -135,7 +136,7 @@ export const trainerProfile = {
       '<section class="profile-main">' +
         '<div class="row gap-s wrap">' + t.badges.map((b, i) => '<span class="tag ' + (i === 0 ? 'tag-light' : 'tag-outline') + '">' + esc(b.toUpperCase()) + '</span>').join('') + '</div>' +
         '<h1 class="display-s">' + esc(t.name) + '</h1>' +
-        '<div class="muted">' + esc(t.sports.join(', ')) + ' · ' + esc(t.city) + (t.area ? ', ' + esc(t.area) : '') + ' · ' + typeLabel(t.type) + '</div>' +
+        '<div class="muted">' + esc(t.sports.join(', ')) + ' · ' + esc(t.city) + (t.area ? ', ' + esc(t.area) : '') + ' · ' + typeLabel(t.type) + '</div><div class="eyebrow accent">' + esc(kindLabels(t).join(' + ').toUpperCase()) + '</div>' +
         '<div class="stats-3"><div class="stat"><div class="stat-num accent">' + (t.rating ? t.rating.toFixed(1) : '—') + '</div><div class="muted small">просечна оценка</div></div>' +
           '<div class="stat"><div class="stat-num">' + t.reviews + '</div><div class="muted small">оценки</div></div>' +
           '<div class="stat"><div class="stat-num">' + t.goalsReached + '</div><div class="muted small">постигнати цели</div></div></div>' +

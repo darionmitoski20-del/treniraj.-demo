@@ -1,6 +1,7 @@
 // Страни за најавен тренер.
 import * as store from '../store.js';
-import { DEMO_CLIENTS, TEMPLATES, DAY_SHORT, DAY_NAMES, SPORTS, SLOT_TIMES, DEMO_PROGRESS } from '../data.js';
+import { planKindOf, features, kindsOf, KINDS, KIND_IDS, PLAN_KINDS, ALL_TEMPLATES } from '../kinds.js';
+import { DEMO_CLIENTS, DAY_SHORT, DAY_NAMES, SPORTS, SLOT_TIMES, DEMO_PROGRESS } from '../data.js';
 import { esc, initials, appLayout, toast, modal, closeModal, chipRow, lineChart, den, greeting } from '../ui.js';
 import { chatBubbles, composer, send, attachVideo, scrollChat } from './chat.js';
 import { shortName } from './public.js';
@@ -148,7 +149,7 @@ export const messages = {
       return '<a class="thread' + (x.id === c.id ? ' on' : '') + '" href="#/t/messages/' + x.id + '"><span class="avatar">' + initials(x.name) + '</span><span class="grow ellipsis"><span class="strong">' + esc(x.name) + '</span><span class="muted small ellipsis">' + esc(last ? last.text : 'Нема пораки') + '</span></span>' + (unread ? '<span class="dot-accent"></span>' : '') + '</a>'; }).join('');
     const content = '<div class="chat-layout two"><section class="threads"><h1 class="h2 upper">Пораки</h1>' + threads + '</section>' +
       '<section class="chat"><header class="chat-head"><div class="grow"><div class="strong">' + esc(c.name) + '</div><div class="muted small">' + esc(c.goal) + ' · ' + esc(c.type.toLowerCase()) + '</div></div>' +
-        '<a class="btn btn-accent btn-sm" href="#/t/clients/' + c.id + '">Напредок</a><a class="btn btn-ghost btn-sm" href="#/t/plans?c=' + c.id + '">Прати план</a><a class="btn btn-ghost btn-sm" href="#/t/recipes?c=' + c.id + '">Прати рецепт</a><button type="button" class="btn btn-accent btn-sm" data-act="videoCall">Видео повик</button></header>' +
+        '<a class="btn btn-accent btn-sm" href="#/t/clients/' + c.id + '">Напредок</a><a class="btn btn-ghost btn-sm" href="#/t/plans?c=' + c.id + '">Прати план</a>' + (myFeatures().recipes ? '<a class="btn btn-ghost btn-sm" href="#/t/recipes?c=' + c.id + '">Прати рецепт</a>' : '') + '<button type="button" class="btn btn-accent btn-sm" data-act="videoCall">Видео повик</button></header>' +
         '<div class="chat-body">' + chatBubbles(store.thread(c.id, tid()), tid()) + '</div>' + composer('sendMsg', 'attach') + '</section></div>';
     return appLayout('trainer', 'messages', content, { full: true });
   },
@@ -225,55 +226,62 @@ export const calendar = {
 };
 
 // ---------- Планови и шаблони ----------
-const planState = { tpl: 'tpl1', day: 0, rows: null, name: null };
-function currentRows() {
-  if (!planState.rows) { const t = TEMPLATES.find((x) => x.id === planState.tpl); planState.rows = t.days.map((d) => d.map((r) => [...r, false])); planState.name = t.name; }
-  return planState.rows;
+const planState = { pk: null, tpl: null, day: 0, rows: null, name: null };
+function myFeatures() { return features(store.trainer(tid())); }
+function ensurePlan() {
+  const f = myFeatures();
+  if (!planState.pk || !f.planKinds.includes(planState.pk)) { planState.pk = f.planKinds[0]; planState.tpl = null; planState.rows = null; planState.day = 0; }
+  if (!planState.rows) {
+    const t = ALL_TEMPLATES.find((x) => x.id === planState.tpl && x.pk === planState.pk) || ALL_TEMPLATES.find((x) => x.pk === planState.pk);
+    planState.tpl = t.id; planState.rows = t.days.map((d) => d.map((r) => [...r, false])); planState.name = t.name; planState.day = 0;
+  }
+  return PLAN_KINDS[planState.pk];
 }
+function currentRows() { ensurePlan(); return planState.rows; }
 export const plans = {
-  title: 'Планови и шаблони',
+  title: 'Планови',
   render(p, q) {
-    const rows = currentRows();
+    const pk = ensurePlan(); const f = myFeatures();
+    const rows = planState.rows;
     const dayRows = rows[planState.day] || [];
     const list = myClients();
+    const kindSwitch = f.planKinds.length > 1 ? '<div class="chips">' + f.planKinds.map((k) => '<button type="button" class="chip' + (k === planState.pk ? ' on accent-chip' : '') + '" data-act="pKind" data-val="' + k + '">' + PLAN_KINDS[k].label + '</button>').join('') + '</div>' : '';
     const content = '<div class="plans"><section class="tpl-list"><h1 class="h2 upper">Шаблони</h1>' +
-      TEMPLATES.map((t) => '<button type="button" class="tpl' + (t.id === planState.tpl ? ' on' : '') + '" data-act="tpl" data-val="' + t.id + '"><span class="strong">' + esc(t.name) + '</span><span class="small">' + esc(t.meta) + '</span></button>').join('') + '</section>' +
-      '<section class="grow stack"><div class="page-head"><div><div class="eyebrow accent">ГРАДИТЕЛ НА ПЛАН</div><label class="sr" for="plan-name">Име на планот</label><input id="plan-name" class="title-input" value="' + esc(planState.name) + '" data-input="pName"></div><button type="button" class="btn btn-ghost btn-sm" data-act="saveTpl">Зачувај како шаблон</button></div>' +
-      '<div class="chips">' + rows.map((_, i) => '<button type="button" class="chip' + (i === planState.day ? ' on' : '') + '" data-act="pDay" data-val="' + i + '">Ден ' + (i + 1) + '</button>').join('') + '<button type="button" class="chip dashed" data-act="addDay">+ Ден</button></div>' +
-      '<div class="table plan-table"><div class="tr th"><span>#</span><span>ВЕЖБА</span><span>СЕРИИ</span><span>ПОВТОР.</span><span>ПАУЗА</span><span>ВИДЕО</span><span></span></div>' +
+      ALL_TEMPLATES.filter((t) => t.pk === planState.pk).map((t) => '<button type="button" class="tpl' + (t.id === planState.tpl ? ' on' : '') + '" data-act="tpl" data-val="' + t.id + '"><span class="strong">' + esc(t.name) + '</span><span class="small">' + esc(t.meta) + '</span></button>').join('') + '</section>' +
+      '<section class="grow stack">' + kindSwitch + '<div class="page-head"><div><div class="eyebrow accent">ГРАДИТЕЛ: ' + esc(pk.label.toUpperCase()) + '</div><label class="sr" for="plan-name">Име на планот</label><input id="plan-name" class="title-input" value="' + esc(planState.name) + '" data-input="pName"></div><button type="button" class="btn btn-ghost btn-sm" data-act="saveTpl">Зачувај како шаблон</button></div>' +
+      '<div class="chips">' + rows.map((_, i) => '<button type="button" class="chip' + (i === planState.day ? ' on' : '') + '" data-act="pDay" data-val="' + i + '">' + pk.dayWord + ' ' + (i + 1) + '</button>').join('') + '<button type="button" class="chip dashed" data-act="addDay">+ ' + pk.dayWord + '</button></div>' +
+      '<div class="table plan-table' + (planState.pk === 'gym' ? '' : ' pk-x') + '"><div class="tr th"><span>#</span>' + pk.cols.map((c) => '<span>' + c + '</span>').join('') + '<span>' + pk.media[0] + '</span><span></span></div>' +
         dayRows.map((r, i) => '<div class="tr"><span class="accent strong">' + (i + 1) + '</span>' +
-          '<input aria-label="Вежба" placeholder="Вежба" value="' + esc(r[0]) + '" data-input="cell" data-val="' + i + ':0">' +
-          '<input aria-label="Серии" placeholder="Серии" value="' + esc(r[1]) + '" data-input="cell" data-val="' + i + ':1">' +
-          '<input aria-label="Повторувања" placeholder="Повтор." value="' + esc(r[2]) + '" data-input="cell" data-val="' + i + ':2">' +
-          '<input aria-label="Пауза" placeholder="Пауза" value="' + esc(r[3]) + '" data-input="cell" data-val="' + i + ':3">' +
-          '<button type="button" class="link small ' + (r[4] ? 'accent' : 'muted') + '" data-act="vid" data-val="' + i + '">' + (r[4] ? '▶ Прикачено' : '+ Снимка') + '</button>' +
+          pk.cols.map((c, j) => '<input aria-label="' + esc(c) + '" placeholder="' + esc(c.toLowerCase()) + '" value="' + esc(r[j]) + '" data-input="cell" data-val="' + i + ':' + j + '">').join('') +
+          '<button type="button" class="link small ' + (r[4] ? 'accent' : 'muted') + '" data-act="vid" data-val="' + i + '">' + (r[4] ? '▶ Прикачено' : pk.media[1]) + '</button>' +
           '<button type="button" class="link muted" data-act="delRow" data-val="' + i + '" aria-label="Избриши ред">✕</button></div>').join('') +
-        '<div class="pad"><button type="button" class="link accent strong" data-act="addRow">+ Додади вежба</button></div></div>' +
+        '<div class="pad"><button type="button" class="link accent strong" data-act="addRow">' + pk.add + '</button></div></div>' +
       '<form class="card light row gap wrap" data-submit="sendPlan"><div class="grow"><div class="strong">Испрати го планот на клиент</div><div class="small">Клиентот го добива во четот.</div></div>' +
         '<label class="sr" for="plan-client">Клиент</label><select id="plan-client" name="c">' + list.map((c) => '<option value="' + c.id + '"' + (q.c === c.id ? ' selected' : '') + '>' + esc(c.name) + '</option>').join('') + '</select><button class="btn btn-dark" type="submit">ИСПРАТИ</button></form></section></div>';
     return appLayout('trainer', 'plans', content);
   },
   actions: {
+    pKind(el) { planState.pk = el.dataset.val; planState.tpl = null; planState.rows = null; store.refresh(); },
     tpl(el) { planState.tpl = el.dataset.val; planState.rows = null; planState.day = 0; store.refresh(); },
     pDay(el) { planState.day = Number(el.dataset.val); store.refresh(); },
     addDay() { currentRows().push([]); planState.day = planState.rows.length - 1; store.refresh(); },
     pName(el) { planState.name = el.value; },
     cell(el) { const [r, c] = el.dataset.val.split(':').map(Number); currentRows()[planState.day][r][c] = el.value; },
-    addRow() { currentRows()[planState.day].push(['Нова вежба', 3, '10', '60 сек', false]); store.refresh(); },
+    addRow() { const pk = ensurePlan(); planState.rows[planState.day].push([...pk.def, false]); store.refresh(); },
     delRow(el) { currentRows()[planState.day].splice(Number(el.dataset.val), 1); store.refresh(); },
-    vid(el) { const r = currentRows()[planState.day][Number(el.dataset.val)]; r[4] = !r[4]; store.refresh(); if (r[4]) toast('Во демото снимката е симулирана.'); },
+    vid(el) { const r = currentRows()[planState.day][Number(el.dataset.val)]; r[4] = !r[4]; store.refresh(); if (r[4]) toast('Во демото прикачувањето е симулирано.'); },
     saveTpl() { toast('Шаблонот „' + planState.name + '“ е зачуван.'); },
     sendPlan(form) {
       const cid = form.c.value;
       if (!cid) { toast('Прво прифати клиент за да му испратиш план.'); return; }
-      const c = clientInfo(cid);
+      const c = clientInfo(cid); const pk = ensurePlan();
       const days = currentRows().filter((d) => d.length).map((d) => d.map((r) => [String(r[0]), String(r[1]), String(r[2]), String(r[3]), !!r[4]]));
       const count = days.reduce((n, d) => n + d.length, 0);
-      if (!count) { toast('Додади барем една вежба.'); return; }
-      const plan = { id: store.uid('pl'), trainerId: tid(), clientId: cid, name: planState.name || 'План', at: Date.now(), days, done: {} };
+      if (!count) { toast('Додади барем една ставка.'); return; }
+      const plan = { id: store.uid('pl'), trainerId: tid(), clientId: cid, name: planState.name || 'План', pk: planState.pk, at: Date.now(), days, done: {} };
       store.markStep('plan');
       store.set((st) => ({ ...st, sentPlans: [plan, ...st.sentPlans] }));
-      store.addMessage(cid, tid(), { from: tid(), kind: 'plan', planId: plan.id, text: plan.name + ' · ' + days.length + ' дена, ' + count + ' вежби' });
+      store.addMessage(cid, tid(), { from: tid(), kind: 'plan', planId: plan.id, text: plan.name + ' · ' + days.length + ' × ' + pk.dayWord.toLowerCase() + ', ' + count + ' ' + pk.item });
       toast('Планот е испратен: ' + c.name);
     },
   },
@@ -288,6 +296,7 @@ export const profile = {
       '<form class="booking" data-submit="saveProfile"><div class="stack grow"><div class="row gap"><button type="button" class="upload square" data-act="upPhoto">+<br>Главна фотографија</button><button type="button" class="upload grow" data-act="upPhoto">▶ Видео презентација · до 60 сек.</button></div>' +
       '<section class="card grid-2 gap-s"><label class="field">Име и презиме<input name="name" value="' + esc(t.name) + '"></label><label class="field">Локација на тренирање<input name="area" value="' + esc(t.city + (t.area ? ', ' + t.area : '')) + '"></label>' +
         '<label class="field span-2">За мене<textarea name="bio" rows="3">' + esc(t.bio) + '</textarea></label>' +
+        '<div class="span-2 stack-s"><span class="eyebrow muted">МОЈ ТИП НА ТРЕНЕР (го прилагодува менито и плановите)</span><div class="chips wrap-chips">' + KIND_IDS.map((k) => '<button type="button" class="chip' + (kindsOf(t).includes(k) ? ' on accent-chip' : '') + '" data-act="toggleKind" data-val="' + k + '" aria-pressed="' + kindsOf(t).includes(k) + '">' + KINDS[k].label + '</button>').join('') + '</div></div>' +
         '<div class="span-2 stack-s"><span class="eyebrow muted">СПОРТОВИ</span><div class="chips">' + SPORTS.map((sp) => '<button type="button" class="chip' + (t.sports.includes(sp) ? ' on accent-chip' : '') + '" data-act="toggleSport" data-val="' + sp + '">' + sp + '</button>').join('') + '</div></div>' +
         '<label class="field">Тип<select name="type">' + [['both', 'Онлајн и во живо'], ['live', 'Само во живо'], ['online', 'Само онлајн']].map(([v, l]) => '<option value="' + v + '"' + (t.type === v ? ' selected' : '') + '>' + l + '</option>').join('') + '</select></label></section>' +
       '<section class="card row gap wrap"><span class="eyebrow muted grow">СЕРТИФИКАТИ</span>' + t.certs.map((c) => '<span class="tag tag-outline">' + esc(c) + '</span>').join('') + '<button type="button" class="chip dashed" data-act="upPhoto">+ Прикачи</button></section></div>' +
@@ -300,6 +309,13 @@ export const profile = {
   actions: {
     upPhoto() { toast('Во вистинската апликација тука прикачуваш фајл.'); },
     boost() { toast('Во демото истакнувањето е симулирано: профилот е прв 7 дена.'); },
+    toggleKind(el) {
+      const t = store.trainer(tid()); const k = el.dataset.val; const cur = kindsOf(t);
+      const next = cur.includes(k) ? cur.filter((x) => x !== k) : [...cur, k];
+      if (!next.length) { toast('Избери барем еден тип.'); return; }
+      setOverride({ kinds: next });
+      toast('Менито и плановите се прилагодени.');
+    },
     toggleSport(el) {
       const t = store.trainer(tid()); const sp = el.dataset.val;
       const next = t.sports.includes(sp) ? t.sports.filter((x) => x !== sp) : [...t.sports, sp];
@@ -353,7 +369,7 @@ function pkgSection(cid) {
       : '<p class="muted">Клиентот нема пакет. Направи пакет за да ги следиш термините и плаќањето.</p>') +
     '<p class="muted small">Плаќањето се договара директно со клиентот; тука само го евидентираш.</p></section>';
   const planCards = plans.length ? '<section class="card stack-s"><h2 class="eyebrow muted">ИСПРАТЕНИ ПЛАНОВИ</h2>' + plans.map((pl) => { const pg = store.planProgress(pl);
-    return '<a class="list-row" href="#/t/plan/' + pl.id + '"><span class="grow"><span class="strong">' + esc(pl.name) + '</span><span class="muted small">' + pg.done + ' од ' + pg.total + ' вежби одработени</span><span class="bar thin"><span style="width:' + Math.round((pg.done / Math.max(pg.total, 1)) * 100) + '%"></span></span></span><span class="muted">›</span></a>'; }).join('') + '</section>' : '';
+    return '<a class="list-row" href="#/t/plan/' + pl.id + '"><span class="grow"><span class="strong">' + esc(pl.name) + '</span><span class="muted small">' + pg.done + ' од ' + pg.total + ' ' + planKindOf(pl).item + ' одработени</span><span class="bar thin"><span style="width:' + Math.round((pg.done / Math.max(pg.total, 1)) * 100) + '%"></span></span></span><span class="muted">›</span></a>'; }).join('') + '</section>' : '';
   return packageCard + planCards;
 }
 
@@ -367,7 +383,7 @@ export const clientDetail = {
     const next = s.bookings.filter((b) => b.clientId === p.id && b.trainerId === tid()).sort((a, b) => a.day - b.day)[0];
     const head = '<div class="page-head"><div class="row gap-s"><a class="btn btn-ghost btn-icon" href="#/t/clients" aria-label="Назад кон клиенти">←</a><span class="avatar lg accent-bg">' + initials(c.name) + '</span>' +
       '<div><h1 class="display-s">' + esc(c.name) + '</h1><div class="muted small">' + esc(c.type || '') + ' · од ' + esc(c.since || '') + (next ? ' · следен термин ' + DAY_SHORT[next.day] + ' ' + next.time : '') + '</div></div></div></div>' +
-      '<div class="row gap-s wrap"><a class="btn btn-ghost btn-sm" href="#/t/messages/' + p.id + '">Порака</a><a class="btn btn-ghost btn-sm" href="#/t/plans?c=' + p.id + '">Прати план</a><a class="btn btn-ghost btn-sm" href="#/t/recipes?c=' + p.id + '">Прати рецепт</a></div>';
+      '<div class="row gap-s wrap"><a class="btn btn-ghost btn-sm" href="#/t/messages/' + p.id + '">Порака</a><a class="btn btn-ghost btn-sm" href="#/t/plans?c=' + p.id + '">Прати план</a>' + (myFeatures().recipes ? '<a class="btn btn-ghost btn-sm" href="#/t/recipes?c=' + p.id + '">Прати рецепт</a>' : '') + '</div>';
     if (!pr.data.length || !pr.shared) {
       return appLayout('trainer', 'clients', head + '<div class="booking"><div class="stack grow"><div class="empty">' + (pr.data.length ? 'Клиентот избрал да не го споделува напредокот.' : 'Клиентот сè уште нема внесено напредок.') + '<br><button type="button" class="btn btn-accent btn-sm" style="margin-top:12px" data-act="askProgress" data-val="' + p.id + '">Замоли го да внесе напредок</button></div></div><aside class="stack w-330">' + pkgSection(p.id) + '</aside></div>');
     }
