@@ -306,63 +306,116 @@ export const calendar = {
 };
 
 // ---------- Планови и шаблони ----------
-const planState = { pk: null, tpl: null, day: 0, rows: null, name: null };
+// Планот се составува во 3 чекора: 1) избери основа, 2) состави по недели и денови, 3) испрати со датум на почеток.
+const planState = { pk: null, tpl: null, week: 0, day: 0, weeks: null, name: null, start: null };
 function myFeatures() { return features(store.trainer(tid())); }
+function allTpls(pk) {
+  const mine = (store.get().myTemplates || []).filter((t) => t.pk === pk && t.trainerId === tid());
+  return [...ALL_TEMPLATES.filter((t) => t.pk === pk), ...mine];
+}
+const tplWeeks = (t) => (t.weeks || [t.days]).map((w) => w.map((d) => d.map((r) => [...r.slice(0, 4), !!r[4]])));
+function tplMeta(t) {
+  const w = t.weeks || [t.days]; const items = w.reduce((n, wk) => n + wk.reduce((m, d) => m + d.length, 0), 0);
+  return w.length + ' ' + (w.length === 1 ? 'недела' : 'недели') + ' · ' + items + ' ' + PLAN_KINDS[t.pk].item;
+}
 function ensurePlan() {
   const f = myFeatures();
-  if (!planState.pk || !f.planKinds.includes(planState.pk)) { planState.pk = f.planKinds[0]; planState.tpl = null; planState.rows = null; planState.day = 0; }
-  if (!planState.rows) {
-    const t = ALL_TEMPLATES.find((x) => x.id === planState.tpl && x.pk === planState.pk) || ALL_TEMPLATES.find((x) => x.pk === planState.pk);
-    planState.tpl = t.id; planState.rows = t.days.map((d) => d.map((r) => [...r, false])); planState.name = t.name; planState.day = 0;
+  if (!planState.pk || !f.planKinds.includes(planState.pk)) { planState.pk = f.planKinds[0]; planState.tpl = null; planState.weeks = null; }
+  if (!planState.weeks) {
+    if (planState.tpl === 'blank') { planState.weeks = [[[[...PLAN_KINDS[planState.pk].def, false]]]]; planState.name = 'Нов план'; }
+    else {
+      const list = allTpls(planState.pk); const t = list.find((x) => x.id === planState.tpl) || list[0];
+      planState.tpl = t.id; planState.weeks = tplWeeks(t); planState.name = t.name;
+    }
+    planState.week = 0; planState.day = 0;
   }
+  if (!planState.start) planState.start = store.isoIn(0);
+  planState.week = Math.min(planState.week, planState.weeks.length - 1);
+  planState.day = Math.min(planState.day, planState.weeks[planState.week].length - 1);
   return PLAN_KINDS[planState.pk];
 }
-function currentRows() { ensurePlan(); return planState.rows; }
+function currentRows() { ensurePlan(); return planState.weeks[planState.week][planState.day]; }
+const cloneDay = (d) => d.map((r) => [...r]);
+const fmtIso = (iso) => (iso ? iso.split('-').reverse().join('.') : '');
 export const plans = {
   title: 'Планови',
   render(p, q) {
     const pk = ensurePlan(); const f = myFeatures();
-    const rows = planState.rows;
-    const dayRows = rows[planState.day] || [];
+    const weeks = planState.weeks; const week = weeks[planState.week];
+    const dayRows = week[planState.day] || [];
     const list = myClients();
+    const cnt = weeks.reduce((n, w) => n + w.reduce((m, d) => m + d.length, 0), 0);
+    const nDays = weeks.reduce((n, w) => n + w.filter((d) => d.length).length, 0);
+    const sent = store.get().sentPlans.filter((x) => x.trainerId === tid());
     const kindSwitch = f.planKinds.length > 1 ? '<div class="chips">' + f.planKinds.map((k) => '<button type="button" class="chip' + (k === planState.pk ? ' on accent-chip' : '') + '" data-act="pKind" data-val="' + k + '">' + PLAN_KINDS[k].label + '</button>').join('') + '</div>' : '';
-    const content = '<div class="plans"><section class="tpl-list"><h1 class="h2 upper">Шаблони</h1>' +
-      ALL_TEMPLATES.filter((t) => t.pk === planState.pk).map((t) => '<button type="button" class="tpl' + (t.id === planState.tpl ? ' on' : '') + '" data-act="tpl" data-val="' + t.id + '"><span class="strong">' + esc(t.name) + '</span><span class="small">' + esc(t.meta) + '</span></button>').join('') + '</section>' +
-      '<section class="grow stack">' + kindSwitch + '<div class="page-head"><div><div class="eyebrow accent">ГРАДИТЕЛ: ' + esc(pk.label.toUpperCase()) + '</div><label class="sr" for="plan-name">Име на планот</label><input id="plan-name" class="title-input" value="' + esc(planState.name) + '" data-input="pName"></div><button type="button" class="btn btn-ghost btn-sm" data-act="saveTpl">Зачувај како шаблон</button></div>' +
-      '<div class="chips">' + rows.map((_, i) => '<button type="button" class="chip' + (i === planState.day ? ' on' : '') + '" data-act="pDay" data-val="' + i + '">' + pk.dayWord + ' ' + (i + 1) + '</button>').join('') + '<button type="button" class="chip dashed" data-act="addDay">+ ' + pk.dayWord + '</button></div>' +
+    const cell = (c, j, r, i) => '<label class="cell"><span class="cell-l">' + esc(c) + '</span><input aria-label="' + esc(c) + '" placeholder="' + esc(c.toLowerCase()) + '" value="' + esc(r[j]) + '" data-input="cell" data-val="' + i + ':' + j + '"></label>';
+    const tpls = allTpls(planState.pk);
+    const content = '<div class="page-head"><h1 class="display-s">Планови</h1></div>' +
+      '<section class="card note how"><div class="strong">Како работи</div><ol class="how-list"><li><b>Избери основа</b> — готов шаблон или празен план.</li><li><b>Состави го</b> — по недели и денови, секоја недела ја менуваш сам.</li><li><b>Испрати</b> — на клиент, со датум од кога почнува.</li></ol></section>' +
+      '<h2 class="eyebrow muted plan-step m-show"><span class="step-n">1</span> ИЗБЕРИ ОСНОВА</h2><div class="plans"><section class="tpl-list"><h2 class="eyebrow muted plan-step hide-m"><span class="step-n">1</span> ИЗБЕРИ ОСНОВА</h2>' +
+      '<button type="button" class="tpl new' + (planState.tpl === 'blank' ? ' on' : '') + '" data-act="tpl" data-val="blank"><span class="strong">+ Празен план</span><span class="small">почни од нула</span></button>' +
+      tpls.map((t) => '<button type="button" class="tpl' + (t.id === planState.tpl ? ' on' : '') + '" data-act="tpl" data-val="' + t.id + '"><span class="strong">' + esc(t.name) + (t.mine ? ' <span class="tag tag-outline">МОЈ</span>' : '') + '</span><span class="small">' + esc(tplMeta(t)) + '</span></button>').join('') + '</section>' +
+      '<section class="grow stack">' + kindSwitch + '<h2 class="eyebrow muted plan-step"><span class="step-n">2</span> СОСТАВИ ГО ПЛАНОТ</h2>' +
+      '<div class="page-head"><div class="grow"><label class="eyebrow accent" for="plan-name">ИМЕ НА ПЛАНОТ</label><input id="plan-name" class="title-input" value="' + esc(planState.name) + '" data-input="pName"></div><button type="button" class="btn btn-ghost btn-sm" data-act="saveTpl">Зачувај како мој шаблон</button></div>' +
+      '<div class="stack-s"><span class="eyebrow muted">НЕДЕЛА</span><div class="chips">' + weeks.map((_, i) => '<button type="button" class="chip' + (i === planState.week ? ' on' : '') + '" data-act="pWeek" data-val="' + i + '">Недела ' + (i + 1) + '</button>').join('') + '<button type="button" class="chip dashed" data-act="addWeek">+ Нова недела (копија)</button>' + (weeks.length > 1 ? '<button type="button" class="link muted small" data-act="delWeek">Избриши ја недела ' + (planState.week + 1) + '</button>' : '') + '</div></div>' +
+      '<div class="stack-s"><span class="eyebrow muted">' + pk.dayWord.toUpperCase() + ' ВО НЕДЕЛА ' + (planState.week + 1) + '</span><div class="chips">' + week.map((_, i) => '<button type="button" class="chip' + (i === planState.day ? ' on' : '') + '" data-act="pDay" data-val="' + i + '">' + pk.dayWord + ' ' + (i + 1) + '</button>').join('') + '<button type="button" class="chip dashed" data-act="addDay">+ ' + pk.dayWord + '</button><button type="button" class="chip dashed" data-act="dupDay">Копирај</button>' + (week.length > 1 ? '<button type="button" class="link muted small" data-act="delDay">Избриши</button>' : '') + '</div></div>' +
       '<div class="table plan-table' + (planState.pk === 'gym' ? '' : ' pk-x') + '"><div class="tr th"><span>#</span>' + pk.cols.map((c) => '<span>' + c + '</span>').join('') + '<span>' + pk.media[0] + '</span><span></span></div>' +
-        dayRows.map((r, i) => '<div class="tr"><span class="accent strong">' + (i + 1) + '</span>' +
-          pk.cols.map((c, j) => '<input aria-label="' + esc(c) + '" placeholder="' + esc(c.toLowerCase()) + '" value="' + esc(r[j]) + '" data-input="cell" data-val="' + i + ':' + j + '">').join('') +
-          '<button type="button" class="link small ' + (r[4] ? 'accent' : 'muted') + '" data-act="vid" data-val="' + i + '">' + (r[4] ? '▶ Прикачено' : pk.media[1]) + '</button>' +
+        dayRows.map((r, i) => '<div class="tr"><span class="accent strong">' + (i + 1) + '</span>' + pk.cols.map((c, j) => cell(c, j, r, i)).join('') +
+          '<button type="button" class="link small ' + (r[4] ? 'accent' : 'muted') + '" data-act="vid" data-val="' + i + '">' + (r[4] ? '▶ Пример прикачен' : pk.media[1] + ' како пример') + '</button>' +
           '<button type="button" class="link muted" data-act="delRow" data-val="' + i + '" aria-label="Избриши ред">✕</button></div>').join('') +
         '<div class="pad"><button type="button" class="link accent strong" data-act="addRow">' + pk.add + '</button></div></div>' +
-      '<form class="card light row gap wrap" data-submit="sendPlan"><div class="grow"><div class="strong">Испрати го планот на клиент</div><div class="small">Клиентот го добива во четот.</div></div>' +
-        '<label class="sr" for="plan-client">Клиент</label><select id="plan-client" name="c">' + list.map((c) => '<option value="' + c.id + '"' + (q.c === c.id ? ' selected' : '') + '>' + esc(c.name) + '</option>').join('') + '</select><button class="btn btn-dark" type="submit">ИСПРАТИ</button></form></section></div>';
+      '<h2 class="eyebrow muted plan-step"><span class="step-n">3</span> ИСПРАТИ НА КЛИЕНТ</h2>' +
+      '<form class="card light stack-s" data-submit="sendPlan"><div class="strong">' + esc(planState.name) + '</div><div class="small">' + weeks.length + ' ' + (weeks.length === 1 ? 'недела' : 'недели') + ' · ' + nDays + ' ' + pk.dayWord.toLowerCase() + (nDays === 1 ? '' : 'а') + ' · ' + cnt + ' ' + pk.item + '</div>' +
+        '<div class="grid-2 gap-s"><label class="field">Клиент<select id="plan-client" name="c">' + list.map((c) => '<option value="' + c.id + '"' + (q.c === c.id ? ' selected' : '') + '>' + esc(c.name) + '</option>').join('') + '</select></label>' +
+        '<label class="field">Почнува на<input type="date" name="start" value="' + planState.start + '" min="' + store.isoIn(0) + '" data-input="pStart"></label></div>' +
+        '<div class="small">Клиентот го добива во четот и како известување. ' + (planState.start > store.isoIn(0) ? 'Може да го разгледува одма, но штиклира од ' + fmtIso(planState.start) + '.' : 'Почнува веднаш.') + ' Секоја недела ја менуваш пред да ја испратиш.</div>' +
+        '<button class="btn btn-dark" type="submit">ИСПРАТИ ПЛАН</button></form>' +
+      '<div class="stack-s"><h2 class="eyebrow muted">ИСПРАТЕНИ ПЛАНОВИ</h2>' + (sent.length ? sent.map((pl) => { const g = store.planProgress(pl); const pct = Math.round((g.done / Math.max(g.total, 1)) * 100);
+        return '<a class="list-row" href="#/t/plan/' + pl.id + '"><span class="avatar">' + initials(store.clientName(pl.clientId)) + '</span><span class="grow"><span class="strong block">' + esc(pl.name) + '</span><span class="muted small">' + esc(store.clientName(pl.clientId)) + ' · ' + g.done + '/' + g.total + ' (' + pct + '%)' + (pl.startDate && pl.startDate > store.isoIn(0) ? ' · почнува ' + fmtIso(pl.startDate) : '') + '</span></span><span class="accent strong">›</span></a>'; }).join('') : '<div class="muted small">Уште не си испратил план.</div>') + '</div>' +
+      '</section></div>';
     return appLayout('trainer', 'plans', content);
   },
   actions: {
-    pKind(el) { planState.pk = el.dataset.val; planState.tpl = null; planState.rows = null; store.refresh(); },
-    tpl(el) { planState.tpl = el.dataset.val; planState.rows = null; planState.day = 0; store.refresh(); },
+    pKind(el) { planState.pk = el.dataset.val; planState.tpl = null; planState.weeks = null; store.refresh(); },
+    tpl(el) { planState.tpl = el.dataset.val; planState.weeks = null; store.refresh(); },
+    pWeek(el) { planState.week = Number(el.dataset.val); planState.day = 0; store.refresh(); },
+    addWeek() {
+      ensurePlan(); const last = planState.weeks[planState.weeks.length - 1];
+      planState.weeks.push(last.map(cloneDay)); planState.week = planState.weeks.length - 1; planState.day = 0;
+      store.refresh(); toast('Недела ' + planState.weeks.length + ' е копија од претходната. Смени што напредува.');
+    },
+    delWeek() { ensurePlan(); if (planState.weeks.length < 2) return; planState.weeks.splice(planState.week, 1); planState.week = Math.max(0, planState.week - 1); planState.day = 0; store.refresh(); },
     pDay(el) { planState.day = Number(el.dataset.val); store.refresh(); },
-    addDay() { currentRows().push([]); planState.day = planState.rows.length - 1; store.refresh(); },
+    addDay() { ensurePlan(); planState.weeks[planState.week].push([]); planState.day = planState.weeks[planState.week].length - 1; store.refresh(); },
+    dupDay() { ensurePlan(); const w = planState.weeks[planState.week]; w.push(cloneDay(w[planState.day])); planState.day = w.length - 1; store.refresh(); },
+    delDay() { ensurePlan(); const w = planState.weeks[planState.week]; if (w.length < 2) return; w.splice(planState.day, 1); planState.day = Math.max(0, planState.day - 1); store.refresh(); },
     pName(el) { planState.name = el.value; },
-    cell(el) { const [r, c] = el.dataset.val.split(':').map(Number); currentRows()[planState.day][r][c] = el.value; },
-    addRow() { const pk = ensurePlan(); planState.rows[planState.day].push([...pk.def, false]); store.refresh(); },
-    delRow(el) { currentRows()[planState.day].splice(Number(el.dataset.val), 1); store.refresh(); },
-    vid(el) { const r = currentRows()[planState.day][Number(el.dataset.val)]; r[4] = !r[4]; store.refresh(); if (r[4]) toast('Во демото прикачувањето е симулирано.'); },
-    saveTpl() { toast('Шаблонот „' + planState.name + '“ е зачуван.'); },
+    pStart(el) { planState.start = el.value || store.isoIn(0); store.refresh(); },
+    cell(el) { const [r, c] = el.dataset.val.split(':').map(Number); currentRows()[r][c] = el.value; },
+    addRow() { const pk = ensurePlan(); planState.weeks[planState.week][planState.day].push([...pk.def, false]); store.refresh(); },
+    delRow(el) { currentRows().splice(Number(el.dataset.val), 1); store.refresh(); },
+    vid(el) { const r = currentRows()[Number(el.dataset.val)]; r[4] = !r[4]; store.refresh(); if (r[4]) toast('Во демото прикачувањето е симулирано.'); },
+    saveTpl() {
+      ensurePlan();
+      const t = { id: store.uid('mt'), trainerId: tid(), pk: planState.pk, name: planState.name || 'Мој шаблон', mine: true, weeks: planState.weeks.map((w) => w.map(cloneDay)) };
+      store.set((st) => ({ ...st, myTemplates: [...(st.myTemplates || []), t] }));
+      planState.tpl = t.id; toast('Шаблонот „' + t.name + '“ е зачуван во „1 · Избери основа“.');
+    },
     sendPlan(form) {
       const cid = form.c.value;
       if (!cid) { toast('Прво прифати клиент за да му испратиш план.'); return; }
       const c = clientInfo(cid); const pk = ensurePlan();
-      const days = currentRows().filter((d) => d.length).map((d) => d.map((r) => [String(r[0]), String(r[1]), String(r[2]), String(r[3]), !!r[4]]));
+      const clean = planState.weeks.map((w) => w.filter((d) => d.length));
+      const days = clean.flat().map((d) => d.map((r) => [String(r[0]), String(r[1]), String(r[2]), String(r[3]), !!r[4]]));
+      const weekSizes = clean.map((w) => w.length).filter((n) => n > 0);
       const count = days.reduce((n, d) => n + d.length, 0);
       if (!count) { toast('Додади барем една ставка.'); return; }
-      const plan = { id: store.uid('pl'), trainerId: tid(), clientId: cid, name: planState.name || 'План', pk: planState.pk, at: Date.now(), days, done: {} };
+      const start = form.start.value || store.isoIn(0);
+      const plan = { id: store.uid('pl'), trainerId: tid(), clientId: cid, name: planState.name || 'План', pk: planState.pk, at: Date.now(), days, weekSizes, startDate: start, startNotified: start <= store.isoIn(0), done: {}, media: {} };
       store.markStep('plan');
       store.set((st) => ({ ...st, sentPlans: [plan, ...st.sentPlans] }));
-      store.addMessage(cid, tid(), { from: tid(), kind: 'plan', planId: plan.id, text: plan.name + ' · ' + days.length + ' × ' + pk.dayWord.toLowerCase() + ', ' + count + ' ' + pk.item });
-      toast('Планот е испратен: ' + c.name);
+      store.addMessage(cid, tid(), { from: tid(), kind: 'plan', planId: plan.id, text: plan.name + ' · ' + weekSizes.length + ' ' + (weekSizes.length === 1 ? 'недела' : 'недели') + ', ' + count + ' ' + pk.item + (start > store.isoIn(0) ? ' · почнува ' + fmtIso(start) : '') });
+      toast('Планот е испратен: ' + c.name + (start > store.isoIn(0) ? ' (почнува ' + fmtIso(start) + ')' : ''));
     },
   },
 };

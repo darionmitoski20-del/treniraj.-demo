@@ -73,6 +73,7 @@ function initialState() {
       { id: 'py5', trainerId: 't1', clientId: 'c4', amount: 3500, method: 'bank', at: ts(-6) },
     ],
     // испратени планови со содржина; done = штиклирани вежби („ден:вежба“)
+    myTemplates: [],
     sentPlans: [
       { id: 'pl1', trainerId: 't1', clientId: 'c1', name: 'План — недела 4', at: ts(-2),
         days: TEMPLATES[0].days.map((d) => d.map((r) => [...r, false])), done: { '0:0': true, '0:1': true, '0:2': true } },
@@ -277,7 +278,14 @@ export function runReminders() {
     changed = true;
     return { ...x, remindedFor: x.expiresAt };
   });
-  if (changed) { state = { ...state, subs, notifications: [...add, ...(state.notifications || [])].slice(0, 60) }; save(); }
+  // Закажани планови: на денот на стартот клиентот добива известување
+  const today = isoIn(0); let plans = state.sentPlans || [];
+  plans = plans.map((pl) => {
+    if (!pl.startDate || pl.startNotified || pl.startDate > today) return pl;
+    add.push({ id: uid('n'), to: pl.clientId, text: 'Планот „' + pl.name + '“ почнува денес. Среќно!', href: '#/c/plan/' + pl.id, at: Date.now(), read: false });
+    changed = true; return { ...pl, startNotified: true };
+  });
+  if (changed) { state = { ...state, subs, sentPlans: plans, notifications: [...add, ...(state.notifications || [])].slice(0, 60) }; save(); }
 }
 
 // ---- Планови ----

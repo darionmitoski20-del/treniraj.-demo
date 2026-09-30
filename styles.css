@@ -774,3 +774,19 @@ a.msg-recipe { text-decoration: none; }
 .ev.pending { border: 2px dashed var(--accent); background: transparent; color: var(--text); }
 .work-row { display: flex; align-items: center; gap: 6px; min-height: 40px; }
 .work-row select { min-height: 36px; padding: 0 6px; width: auto; }
+
+/* v10: планови — јасни чекори */
+.how { padding: 14px 16px; }
+.how-list { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 4px; font-size: 14px; }
+.plan-step { display: flex; align-items: center; gap: 8px; }
+.step-n { display: inline-flex; width: 22px; height: 22px; border-radius: 50%; background: var(--accent); color: var(--dark); align-items: center; justify-content: center; font-size: 12px; font-weight: 900; }
+.cell { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.cell-l { display: none; font-size: 10px; letter-spacing: .08em; font-weight: 800; color: var(--muted); }
+.week-head { font-family: var(--display); font-size: 15px; letter-spacing: .06em; margin: 10px 0 -2px; }
+.ex-wrap { display: flex; flex-direction: column; gap: 6px; }
+.ex-under { padding: 0 4px 6px; }
+.ex-tools { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.ex-media { width: 96px; height: 72px; object-fit: cover; border-radius: 10px; }
+.ex.locked { opacity: .6; }
+@media (max-width: 760px) { .cell-l { display: block; } .plan-table .tr > :nth-child(1) { align-self: end; } }
+.plans .card.light input[type=date] { background: #fff; color: var(--dark); border-color: var(--dark); font-weight: 800; }
