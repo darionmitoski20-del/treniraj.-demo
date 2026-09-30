@@ -4,7 +4,7 @@ import { kindLabels } from '../kinds.js';
 import * as store from '../store.js';
 import { SPORTS, CITIES, CHALLENGES, LEADERBOARD_OTHERS, PARTNER_CATEGORIES } from '../data.js';
 import { esc, initials, icon, publicLayout, appLayout, chipRow, photo, trainerPhoto, partnerPhoto, stars, priceLabel, typeLabel, toast, modal, closeModal } from '../ui.js';
-import { reviewsBlock, reviewActions, postCard, postActions } from './social.js';
+import { reviewsBlock, reviewActions } from './social.js';
 
 // ---------- Почетна / пребарување ----------
 const search = { sport: 'Сите', city: 'Сите', type: 'Сите', q: '' };
@@ -116,7 +116,6 @@ export const trainerProfile = {
     const cid = s.client.id;
     const linked = s.role === 'client' && store.isLinked(cid, t.id);
     const pending = s.role === 'client' && store.pendingRequestFrom(cid, t.id);
-    const posts = store.postsBy(t.id);
     let cta;
     if (s.role === 'trainer') cta = '<div class="note">Ова е приказ за клиентите.</div>';
     else if (linked) cta = '<a class="btn btn-accent btn-lg grow" href="#/c/messages/' + t.id + '">ОТВОРИ ЧЕТ</a><a class="btn btn-ghost btn-icon" href="#/c/booking?t=' + t.id + '" aria-label="Закажи термин">📅</a>';
@@ -145,14 +144,12 @@ export const trainerProfile = {
         '<div class="grid-2"><div class="card"><h2 class="eyebrow muted">УСЛУГИ</h2>' + services.map(([a, b]) => '<div class="kv"><span>' + a + '</span><span class="strong">' + b + '</span></div>').join('') + '</div>' +
           '<div class="card"><h2 class="eyebrow muted">РЕЗУЛТАТИ НА КЛИЕНТИ</h2><div class="grid-3 gap-s">' + [1, 2, 3].map(() => photo('ПРЕД/ПОТОА', 'person', 'photo-sm')).join('') + '</div><p class="muted small">Објавено со дозвола од клиентите.</p></div></div>' +
         reviewsBlock(t.id, linked) +
-        (posts.length ? '<div class="stack-s"><h2 class="eyebrow muted">ПОСЛЕДНИ ОБЈАВИ</h2>' + posts.slice(0, 2).map((po) => postCard(po)).join('') + '</div>' : '') +
       '</section></div>';
     return s.role === 'client' ? appLayout('client', 'find', content) : publicLayout('home', content);
   },
   mount() { if (store.get().role !== 'trainer') store.markStep('find'); },
   actions: {
     ...reviewActions,
-    ...postActions,
     request(el) {
       const s = store.get();
       if (s.role !== 'client') { location.hash = '#/signup?next=' + encodeURIComponent('/trainer/' + el.dataset.val); return; }

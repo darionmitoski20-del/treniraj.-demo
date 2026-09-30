@@ -1,5 +1,5 @@
 // Состојба на демото, зачувана во localStorage на прелистувачот.
-import { TRAINERS, DEMO_REQUESTS, DEMO_CLIENTS, SEED_REVIEWS, SEED_POSTS, PARTNERS, PARTNER_STATS, SEED_RECIPES, TEMPLATES } from './data.js';
+import { TRAINERS, DEMO_REQUESTS, DEMO_CLIENTS, SEED_REVIEWS, PARTNERS, PARTNER_STATS, SEED_RECIPES, TEMPLATES } from './data.js';
 
 const KEY = 'trenirai-demo-v6';
 
@@ -78,7 +78,6 @@ function initialState() {
     reviews: SEED_REVIEWS.map((r) => ({ ...r })),
     recipes: JSON.parse(JSON.stringify(SEED_RECIPES)),
     sharedRecipes: [{ recipeId: 'rc4', clientId: 'c1', trainerId: 't3', at: ts(-4) }, { recipeId: 'rc1', clientId: 'c1', trainerId: 't1', at: ts(-6) }],
-    posts: SEED_POSTS.map((p) => ({ ...p, likes: [...p.likes], at: ts(p.daysAgo) })),
     notifications: [
       { id: 'n1', to: 't1', text: 'Ново барање од Ивана М.', href: '#/t/clients', at: ts(-0.1), read: false },
       { id: 'n2', to: 't1', text: 'Никола Д. ти прати снимка за корекција', href: '#/t/messages/c2', at: ts(-0.2), read: false },
@@ -141,9 +140,6 @@ export function reviewsFor(trainerId) {
   return (state.reviews || []).filter((r) => r.trainerId === trainerId).sort((a, b) => b.at - a.at);
 }
 
-export function postsBy(trainerId) {
-  return (state.posts || []).filter((p) => !trainerId || p.trainerId === trainerId).sort((a, b) => b.at - a.at);
-}
 
 // ---- Известувања ----
 export function meId() { return state.role === 'trainer' ? state.trainerId : state.role === 'client' ? state.client.id : state.role === 'partner' ? state.partnerId : null; }
