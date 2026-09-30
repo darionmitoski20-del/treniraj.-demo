@@ -21,7 +21,8 @@ const STEPS = {
     ['recipe', 'Испрати рецепт на клиент', '#/t/recipes', 'trainer'],
     ['payinfo', 'Внеси начин на плаќање за клиентите', '#/t/payments', 'trainer'],
     ['paid', 'Означи дека клиент платил', '#/t/payments', 'trainer'],
-    ['cal', 'Додај термин во календарот', '#/t/calendar', 'trainer'],
+    ['cal', 'Постави работно време или термин', '#/t/calendar', 'trainer'],
+    ['link', 'Сподели го твојот линк или QR-код', '#/t/profile', 'trainer'],
     ['profile', 'Смени цена или опис во профилот', '#/t/profile', 'trainer'],
     ['asClient', 'Види како изгледа за клиентот', '#/c/home', 'client'],
   ],
@@ -38,7 +39,7 @@ let welcomeShown = false;
 hooks.guideLabel = () => { const s = store.get(); const [d, n] = guideProgress(s); return (s.guide.open ? 'Скриј водич ' : 'Водич ') + d + '/' + n; };
 
 const routes = [
-  ['/', pub.home], ['/map', pub.map], ['/trainer/:id', pub.trainerProfile], ['/partner/:id', pub.partnerProfile], ['/signup', pub.signup],
+  ['/', pub.home], ['/map', pub.map], ['/trainer/:id', pub.trainerProfile], ['/u/:slug', pub.trainerByLink], ['/partner/:id', pub.partnerProfile], ['/signup', pub.signup],
   ['/quiz', pub.quiz], ['/partners', pub.partners], ['/challenges', pub.challenges],
   ['/c/home', client.home, 'client'], ['/c/messages', client.messages, 'client'], ['/c/messages/:id', client.messages, 'client'],
   ['/c/booking', client.booking, 'client'], ['/c/progress', client.progress, 'client'], ['/c/challenges', client.challenges, 'client'],

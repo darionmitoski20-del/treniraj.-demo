@@ -766,3 +766,11 @@ a.msg-recipe { text-decoration: none; }
 
 /* v8: понуди */
 .offer-img { width: 100%; height: 150px; object-fit: cover; border-radius: 12px; }
+
+/* v9: линк/QR и календар */
+.qr-box { background: #fff; border-radius: 14px; padding: 8px; max-width: 280px; margin: 0 auto; width: 100%; }
+.qr-box.sm { max-width: 180px; }
+.qr { display: block; width: 100%; height: auto; }
+.ev.pending { border: 2px dashed var(--accent); background: transparent; color: var(--text); }
+.work-row { display: flex; align-items: center; gap: 6px; min-height: 40px; }
+.work-row select { min-height: 36px; padding: 0 6px; width: auto; }

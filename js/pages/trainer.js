@@ -6,9 +6,38 @@ import { esc, initials, appLayout, toast, modal, closeModal, chipRow, lineChart,
 import { chatBubbles, composer, send, attachVideo, scrollChat } from './chat.js';
 import { shortName } from './public.js';
 import { recipeActions } from './recipes.js';
+import { qrSvg, qrPng } from '../qr.js';
 import { subLine, subText, subTag, payActions, fmtDate } from './pay.js';
 
 const tid = () => store.get().trainerId;
+
+// ---------- Личен линк и QR ----------
+function qrModal() {
+  const t = store.trainer(tid()); const link = store.trainerLink(t);
+  modal('<div class="eyebrow accent">ТВОЈ QR-КОД</div><h2 class="h2">' + esc(t.name) + '</h2><div class="qr-box">' + qrSvg(link) + '</div><div class="code-box small">' + esc(link) + '</div>' +
+    '<p class="muted small">Залепи го на теретана, визит-картичка или Instagram. Клиентот скенира и го отвора твојот профил.</p>' +
+    '<div class="row gap"><button type="button" class="btn btn-accent grow" data-act="qrDownload">СИМНИ СЛИКА</button><button type="button" class="btn btn-ghost grow" data-act="copyLink" data-val="' + esc(link) + '">КОПИРАЈ ЛИНК</button></div>');
+}
+const linkActions = {
+  qrOpen() { qrModal(); },
+  qrDownload() {
+    const t = store.trainer(tid()); const a = document.createElement('a');
+    a.href = qrPng(store.trainerLink(t), 900); a.download = 'treniraj-' + store.trainerSlug(t) + '-qr.png'; document.body.appendChild(a); a.click(); a.remove();
+    store.markStep('link'); toast('QR-кодот е симнат.');
+  },
+  copyLink(el) { try { navigator.clipboard.writeText(el.dataset.val); } catch (e) { /* */ } store.markStep('link'); closeModal(); toast('Линкот е копиран.'); },
+  shareLink(el) {
+    const t = store.trainer(tid()); const link = store.trainerLink(t); store.markStep('link');
+    if (navigator.share) { navigator.share({ title: t.name + ' на Тренирај', url: link }).catch(() => {}); return; }
+    try { navigator.clipboard.writeText(link); } catch (e) { /* */ } toast('Линкот е копиран.');
+  },
+};
+function linkCard() {
+  const t = store.trainer(tid()); const link = store.trainerLink(t);
+  return '<section class="card stack-s"><h2 class="eyebrow muted">ТВОЈ ЛИЧЕН ЛИНК</h2><div class="code-box small">' + esc(link.replace(/^https?:\/\//, '')) + '</div>' +
+    '<div class="row gap-s"><button type="button" class="btn btn-accent btn-sm grow" data-act="shareLink">СПОДЕЛИ</button><button type="button" class="btn btn-ghost btn-sm grow" data-act="qrOpen">QR-КОД</button></div></section>';
+}
+
 
 function clientInfo(id) {
   const s = store.get();
@@ -116,11 +145,11 @@ export const home = {
         '<div class="card"><div class="eyebrow muted">ТЕРМИНИ</div><div class="display-xs">' + week.length + '</div><div class="muted small">оваа недела</div></div>' +
         '<div class="card"><div class="eyebrow muted">ПРЕГЛЕДИ</div><div class="display-xs">' + (t.isNew ? 0 : 312) + '</div><div class="muted small">на профилот овој месец</div></div></div>' +
       '<div class="row gap stack-m"><section class="card grow"><h2 class="eyebrow muted">НОВИ БАРАЊА</h2>' + requestRows(reqs) + (!clients.length && !reqs.length ? '<div class="muted small pad">Сподели го линкот до профилот во „Клиенти → Покани клиент“.</div>' : '') + '</section>' +
-      '<section class="stack w-320">' + expBlock + '<div class="card"><h2 class="eyebrow muted">ДЕНЕС</h2>' + (todays.length ? todays.map((b) => '<div class="kv"><span class="accent strong">' + b.time + '</span><span>' + esc(b.clientName) + ' · ' + esc(b.type.toLowerCase()) + '</span></div>').join('') : '<div class="muted small">Немаш термини денес.</div>') + '<a class="link accent small strong" href="#/t/calendar">Календар →</a></div>' +
-        goalCard + (t.isNew ? '' : '<div class="card row gap"><span class="display-xs accent">#1</span><span class="small"><span class="strong">Месечна ранг листа</span><br><span class="muted">Тренер на месецот</span></span></div>') + '</section></div>';
+      '<section class="stack w-320">' + expBlock + '<div class="card"><h2 class="eyebrow muted">ДЕНЕС</h2>' + (todays.length ? todays.filter((b) => b.status !== 'pending').map((b) => '<div class="kv"><span class="accent strong">' + b.time + '</span><span>' + esc(b.clientName) + ' · ' + esc(b.type.toLowerCase()) + '</span></div>').join('') : '<div class="muted small">Немаш термини денес.</div>') + '<a class="link accent small strong" href="#/t/calendar">Календар →</a></div>' +
+        linkCard() + goalCard + (t.isNew ? '' : '<div class="card row gap"><span class="display-xs accent">#1</span><span class="small"><span class="strong">Месечна ранг листа</span><br><span class="muted">Тренер на месецот</span></span></div>') + '</section></div>';
     return appLayout('trainer', 'home', content);
   },
-  actions: { ...reqActions, accepting(el) { setOverride({ accepting: el.checked }); toast(el.checked ? 'Профилот прима нови клиенти.' : 'Профилот е означен „Не прима нови“.'); } },
+  actions: { ...reqActions, ...linkActions, accepting(el) { setOverride({ accepting: el.checked }); toast(el.checked ? 'Профилот прима нови клиенти.' : 'Профилот е означен „Не прима нови“.'); } },
 };
 
 function setOverride(patch) {
@@ -161,11 +190,8 @@ export const clients = {
     ...reqActions,
     cTab(el) { cState.tab = el.dataset.val; store.refresh(); },
     cq(el) { cState.q = el.value; store.refresh(); },
-    invite() {
-      const link = location.origin + location.pathname + '#/trainer/' + tid();
-      modal('<h2 class="h2">Покани клиенти</h2><p class="muted">Прати го овој линк на клиентите што веќе ги тренираш:</p><div class="code-box small">' + esc(link) + '</div><button type="button" class="btn btn-accent" data-act="copyLink" data-val="' + esc(link) + '">КОПИРАЈ ЛИНК</button>');
-    },
-    copyLink(el) { try { navigator.clipboard.writeText(el.dataset.val); } catch (e) { /* */ } closeModal(); toast('Линкот е копиран.'); },
+    invite() { qrModal(); },
+    ...linkActions,
   },
 };
 
@@ -196,6 +222,10 @@ export const messages = {
 function activeClient(cur) { const list = myClients(); return (list.find((x) => x.id === cur.params.id) || list[0]).id; }
 
 // ---------- Календар ----------
+function setWork(day, patch) {
+  store.markStep('cal');
+  store.set((s) => { const work = store.workOf(s.trainerId).map((w, i) => (i === day ? { ...w, ...patch } : w)); return { ...s, availability: { ...s.availability, work } }; });
+}
 export const calendar = {
   title: 'Календар',
   render() {
@@ -205,28 +235,47 @@ export const calendar = {
     const todayIdx = (new Date().getDay() + 6) % 7;
     const cols = DAY_SHORT.map((d, i) => {
       const evs = bookings.filter((b) => b.day === i).map((b) => { const h = parseInt(b.time, 10);
-        return '<button type="button" class="ev ' + (b.type === 'Во живо' ? 'live' : 'online') + '" style="top:' + ((h - 8) * 44 + 2) + 'px" data-act="evOpen" data-val="' + b.id + '"><span class="strong">' + esc(b.clientName) + '</span><span class="small">' + b.time + '</span></button>'; }).join('');
+        return '<button type="button" class="ev ' + (b.type === 'Во живо' ? 'live' : 'online') + (b.status === 'pending' ? ' pending' : '') + '" style="top:' + ((h - 8) * 44 + 2) + 'px" data-act="evOpen" data-val="' + b.id + '"><span class="strong">' + esc(b.clientName) + '</span><span class="small">' + b.time + '</span></button>'; }).join('');
       return '<div class="cal-col' + (i === 6 ? ' closed' : '') + '">' + evs + '</div>';
     }).join('');
     const list = DAY_NAMES.map((dn, i) => {
       const items = bookings.filter((b) => b.day === i).sort((a, b) => a.time.localeCompare(b.time));
       if (!items.length && i !== todayIdx) return '';
       return '<section class="cal-day' + (i === todayIdx ? ' today' : '') + '"><h3>' + dn.toUpperCase() + (i === todayIdx ? ' · ДЕНЕС' : '') + '</h3>' +
-        (items.length ? items.map((b) => '<button type="button" class="cal-item" data-act="evOpen" data-val="' + b.id + '"><span class="cal-time">' + b.time + '</span><span class="cal-dot' + (b.type === 'Во живо' ? '' : ' online') + '"></span><span class="grow"><span class="strong block">' + esc(b.clientName) + '</span><span class="muted small">' + esc(b.type) + '</span></span><span class="muted">›</span></button>').join('') : '<p class="muted small">Нема термини.</p>') + '</section>';
+        (items.length ? items.map((b) => '<button type="button" class="cal-item" data-act="evOpen" data-val="' + b.id + '"><span class="cal-time">' + b.time + '</span><span class="cal-dot' + (b.type === 'Во живо' ? '' : ' online') + '"></span><span class="grow"><span class="strong block">' + esc(b.clientName) + '</span><span class="muted small">' + esc(b.type) + (b.status === 'pending' ? ' · чека потврда' : '') + '</span></span><span class="muted">›</span></button>').join('') : '<p class="muted small">Нема термини.</p>') + '</section>';
     }).join('');
+    const work = store.workOf(tid());
+    const hourOpts = (a, z, sel) => { let o = ''; for (let h = a; h <= z; h++) o += '<option value="' + h + '"' + (h === sel ? ' selected' : '') + '>' + String(h).padStart(2, '0') + ':00</option>'; return o; };
+    const pend = store.pendingBookings(tid());
+    const pendBlock = pend.length ? '<section class="card accent-line stack-s"><h2 class="eyebrow">БАРАЊА ЗА ТЕРМИН · ' + pend.length + '</h2>' + pend.map((b) => '<div class="stack-s rq-item"><div><span class="strong">' + esc(b.clientName) + '</span><br><span class="muted small">' + DAY_NAMES[b.day] + ', ' + b.time + ' · ' + esc(b.type.toLowerCase()) + '</span></div><div class="row gap-s"><button type="button" class="btn btn-accent btn-sm grow" data-act="bkOk" data-val="' + b.id + '">ПОТВРДИ</button><button type="button" class="btn btn-ghost btn-sm grow" data-act="bkNo" data-val="' + b.id + '">ОДБИЈ</button></div></div>').join('') + '</section>' : '';
     const content = '<div class="page-head"><h1 class="display-s">Календар</h1><span class="muted strong">Оваа недела</span></div>' +
       '<div class="cal-list m-show">' + list + '</div>' +
       '<div class="legend hide-m"><span><i class="lg live"></i>Во живо</span><span><i class="lg online"></i>Онлајн / видео</span><span><i class="lg closed"></i>Неработен ден</span></div>' +
       '<div class="booking"><div class="cal grow hide-m"><div class="cal-head"><span></span>' + DAY_SHORT.map((d, i) => '<span class="' + (i === todayIdx ? 'accent' : '') + '">' + d + '</span>').join('') + '</div>' +
         '<div class="cal-body"><div class="cal-hours">' + hours.map((h) => '<span>' + String(h).padStart(2, '0') + '</span>').join('') + '</div>' + cols + '</div></div>' +
-      '<aside class="stack w-300"><button type="button" class="btn btn-accent" data-act="addSlot">+ ДОДАДИ ТЕРМИН</button>' +
-        '<section class="card"><h2 class="eyebrow muted">РАБОТНО ВРЕМЕ</h2><div class="kv"><span>Пон – Пет</span><span class="strong">08 – 20</span></div><div class="kv"><span>Сабота</span><span class="strong">08 – 12</span></div><div class="kv"><span>Недела</span><span class="muted">Слободно</span></div></section>' +
+      '<aside class="stack w-300"><button type="button" class="btn btn-accent" data-act="addSlot">+ ДОДАДИ ТЕРМИН</button>' + pendBlock +
+        '<section class="card stack-s"><h2 class="eyebrow muted">РАБОТНО ВРЕМЕ</h2><p class="muted small">Клиентите можат да закажуваат само во овие часови.</p>' + work.map((w, i) => '<div class="work-row"><label class="check grow"><input type="checkbox" data-change="workOn" data-day="' + i + '"' + (w.on ? ' checked' : '') + '> ' + DAY_NAMES[i] + '</label>' +
+          (w.on ? '<select aria-label="Од" data-change="workFrom" data-day="' + i + '">' + hourOpts(6, 21, w.from) + '</select><span class="muted">–</span><select aria-label="До" data-change="workTo" data-day="' + i + '">' + hourOpts(7, 23, w.to) + '</select>' : '<span class="muted small">Слободно</span>') + '</div>').join('') + '</section>' +
         '<section class="card stack-s"><h2 class="eyebrow muted">ПРАВИЛО ЗА ОТКАЖУВАЊЕ</h2><label class="field">Клиентот може да откаже најдоцна<select data-change="cancelHours">' + [[24, '24 часа пред'], [12, '12 часа пред'], [0, 'Секогаш']].map(([v, l]) => '<option value="' + v + '"' + (s.availability.cancelHours === v ? ' selected' : '') + '>' + l + '</option>').join('') + '</select></label>' +
-        '<label class="check"><input type="checkbox" data-change="deposit"' + (s.availability.deposit ? ' checked' : '') + '> Барај депозит при закажување</label></section>' +
+        '<label class="check"><input type="checkbox" data-change="autoConfirm"' + (s.availability.autoConfirm ? ' checked' : '') + '> Автоматски потврдувај ги термините</label><label class="check"><input type="checkbox" data-change="deposit"' + (s.availability.deposit ? ' checked' : '') + '> Барај депозит при закажување</label></section>' +
         '<section class="card note">Клиентите добиваат потсетник во апликацијата и на email пред секој термин.</section></aside></div>';
     return appLayout('trainer', 'calendar', content);
   },
   actions: {
+    autoConfirm(el) { store.set((s) => ({ ...s, availability: { ...s.availability, autoConfirm: el.checked } })); toast(el.checked ? 'Новите термини се потврдуваат автоматски.' : 'Ќе потврдуваш секој термин рачно.'); },
+    workOn(el) { setWork(Number(el.dataset.day), { on: el.checked }); },
+    workFrom(el) { const d = Number(el.dataset.day); const w = store.workOf(tid())[d]; const v = Number(el.value); setWork(d, { from: v, to: Math.max(w.to, v + 1) }); },
+    workTo(el) { const d = Number(el.dataset.day); const w = store.workOf(tid())[d]; const v = Number(el.value); setWork(d, { to: v, from: Math.min(w.from, v - 1) }); },
+    bkOk(el) {
+      const b = store.get().bookings.find((x) => x.id === el.dataset.val); if (!b) return;
+      store.set((st) => ({ ...st, bookings: st.bookings.map((x) => (x.id === b.id ? { ...x, status: 'confirmed' } : x)) }));
+      store.markStep('cal'); store.notify(b.clientId, 'Терминот е потврден: ' + DAY_NAMES[b.day] + ', ' + b.time, '#/c/booking'); toast('Терминот е потврден.');
+    },
+    bkNo(el) {
+      const b = store.get().bookings.find((x) => x.id === el.dataset.val); if (!b) return;
+      store.set((st) => ({ ...st, bookings: st.bookings.filter((x) => x.id !== b.id) }));
+      store.notify(b.clientId, 'Терминот (' + DAY_NAMES[b.day] + ', ' + b.time + ') не е прифатен. Избери друг час.', '#/c/booking'); toast('Терминот е одбиен, клиентот е известен.');
+    },
     cancelHours(el) { store.set((s) => ({ ...s, availability: { ...s.availability, cancelHours: Number(el.value) } })); toast('Правилото е зачувано.'); },
     deposit(el) { store.set((s) => ({ ...s, availability: { ...s.availability, deposit: el.checked } })); },
     evOpen(el) {
@@ -331,13 +380,17 @@ export const profile = {
         '<div class="span-2 stack-s"><span class="eyebrow muted">СПОРТОВИ</span><div class="chips">' + SPORTS.map((sp) => '<button type="button" class="chip' + (t.sports.includes(sp) ? ' on accent-chip' : '') + '" data-act="toggleSport" data-val="' + sp + '">' + sp + '</button>').join('') + '</div></div>' +
         '<label class="field">Тип<select name="type">' + [['both', 'Онлајн и во живо'], ['live', 'Само во живо'], ['online', 'Само онлајн']].map(([v, l]) => '<option value="' + v + '"' + (t.type === v ? ' selected' : '') + '>' + l + '</option>').join('') + '</select></label></section>' +
       '<section class="card row gap wrap"><span class="eyebrow muted grow">СЕРТИФИКАТИ</span>' + t.certs.map((c) => '<span class="tag tag-outline">' + esc(c) + '</span>').join('') + '<button type="button" class="chip dashed" data-act="upPhoto">+ Прикачи</button></section></div>' +
-      '<aside class="stack w-340"><section class="card stack-s"><div class="row"><h2 class="eyebrow muted grow">УСЛУГИ И ЦЕНИ</h2><label class="check small"><input type="checkbox" name="pricesPublic"' + (t.pricesPublic ? ' checked' : '') + '> Прикажи јавно</label></div>' +
+      '<aside class="stack w-340"><section class="card stack-s"><h2 class="eyebrow muted">МОЈ ЛИНК И QR-КОД</h2><label class="field">Адреса на профилот<span class="row gap-s nocaps"><span class="muted small">#/u/</span><input name="slug" class="grow" value="' + esc(store.trainerSlug(t)) + '" autocapitalize="none" spellcheck="false"></span></label>' +
+        '<div class="code-box small">' + esc(store.trainerLink(t)) + '</div><div class="qr-box sm">' + qrSvg(store.trainerLink(t)) + '</div>' +
+        '<div class="row gap-s"><button type="button" class="btn btn-accent btn-sm grow" data-act="shareLink">СПОДЕЛИ</button><button type="button" class="btn btn-ghost btn-sm grow" data-act="qrDownload">СИМНИ QR</button></div></section>' +
+        '<section class="card stack-s"><div class="row"><h2 class="eyebrow muted grow">УСЛУГИ И ЦЕНИ</h2><label class="check small"><input type="checkbox" name="pricesPublic"' + (t.pricesPublic ? ' checked' : '') + '> Прикажи јавно</label></div>' +
         '<label class="field">Тренинг во живо (ден.)<input name="price" inputmode="numeric" value="' + (t.price || '') + '"></label><label class="field">Онлајн план, месечно (ден.)<input name="onlinePrice" inputmode="numeric" value="' + (t.onlinePrice || '') + '"></label><div class="kv"><span>Прв разговор</span><span class="accent strong">Бесплатно</span></div></section>' +
         '<section class="card light stack-s"><div class="eyebrow">ИСТАКНИ ГО ПРОФИЛОТ</div><div class="small strong">Биди прв во пребарувањето за твојот спорт и град.</div><button type="button" class="btn btn-dark btn-sm" data-act="boost">ИСТАКНИ · 7 ДЕНА</button></section>' +
         '<button type="submit" class="btn btn-accent btn-lg">ЗАЧУВАЈ ПРОМЕНИ</button></aside></form>';
     return appLayout('trainer', 'profile', content);
   },
   actions: {
+    ...linkActions,
     upPhoto() { toast('Во вистинската апликација тука прикачуваш фајл.'); },
     boost() { toast('Во демото истакнувањето е симулирано: профилот е прв 7 дена.'); },
     toggleKind(el) {
@@ -357,7 +410,10 @@ export const profile = {
       const num = (v) => { const n = parseInt(String(v).replace(/\D/g, ''), 10); return isNaN(n) ? 0 : n; };
       const [city, ...area] = form.area.value.split(',');
       store.markStep('profile');
-      setOverride({ name: form.name.value, bio: form.bio.value, type: form.type.value, pricesPublic: form.pricesPublic.checked, price: num(form.price.value), onlinePrice: num(form.onlinePrice.value), city: city.trim() || 'Скопје', area: area.join(',').trim() });
+      const slug = store.slugify(form.slug.value) || store.slugify(form.name.value);
+      const clash = store.allTrainers().some((x) => x.id !== tid() && store.trainerSlug(x) === slug);
+      if (clash) { toast('Таа адреса е зафатена, пробај друга.'); return; }
+      setOverride({ slug, name: form.name.value, bio: form.bio.value, type: form.type.value, pricesPublic: form.pricesPublic.checked, price: num(form.price.value), onlinePrice: num(form.onlinePrice.value), city: city.trim() || 'Скопје', area: area.join(',').trim() });
       toast('Профилот е зачуван. Клиентите веќе ги гледаат промените.');
     },
   },

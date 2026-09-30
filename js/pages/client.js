@@ -24,7 +24,7 @@ export const home = {
     const s = store.get();
     const c = me();
     const trainers = store.clientTrainers(c.id);
-    const next = s.bookings.filter((b) => b.clientId === c.id).sort((a, b) => a.day - b.day || a.time.localeCompare(b.time))[0];
+    const next = s.bookings.filter((b) => b.clientId === c.id && b.status !== 'pending').sort((a, b) => a.day - b.day || a.time.localeCompare(b.time))[0];
     const pending = s.requests.filter((r) => r.clientId === c.id && r.status === 'pending');
     const first = s.progress[0], last = s.progress[s.progress.length - 1];
     const lost = first && last ? Math.max(0, first.weight - last.weight) : 0;
@@ -129,11 +129,12 @@ export const booking = {
     if (q.t && store.isLinked(c.id, q.t) && book.tid !== q.t && !book._fromQuery) { book.tid = q.t; book._fromQuery = true; }
     if (!book.tid || !store.isLinked(c.id, book.tid)) book.tid = trainers[0].id;
     const t = store.trainer(book.tid);
-    const taken = (day, time) => s.bookings.some((b) => b.trainerId === t.id && b.day === day && b.time === time);
-    const freeCount = (d) => (d === 6 ? 0 : SLOT_TIMES.filter((tm) => !taken(d, tm)).length - (d === 5 ? 6 : 0));
+    const taken = (day, time) => store.slotTaken(t.id, day, time);
+    const freeCount = (d) => store.slotsFor(t.id, d).filter((tm) => !taken(d, tm)).length;
     const days = DAY_SHORT.map((lbl, i) => { const n = Math.max(0, freeCount(i)); const on = book.day === i;
       return '<button type="button" class="day' + (on ? ' on' : '') + (n ? '' : ' off') + '" data-act="bDay" data-val="' + i + '"' + (n ? '' : ' disabled') + '><span class="small strong">' + lbl + '</span><span class="small">' + (n ? n + ' слободни' : 'полно') + '</span></button>'; }).join('');
-    const slots = SLOT_TIMES.slice(0, book.day === 5 ? 4 : SLOT_TIMES.length).map((tm) => { const tk = taken(book.day, tm); const on = book.slot === tm;
+    const daySlots = store.slotsFor(t.id, book.day);
+    const slots = (daySlots.length ? '' : '<p class="muted small">Тренерот не работи овој ден.</p>') + daySlots.map((tm) => { const tk = taken(book.day, tm); const on = book.slot === tm;
       return '<button type="button" class="slot' + (on ? ' on' : '') + (tk ? ' off' : '') + '" data-act="bSlot" data-val="' + tm + '"' + (tk ? ' disabled' : '') + '>' + tm + (tk ? '<span class="small"> · зафатено</span>' : '') + '</button>'; }).join('');
     const mine = s.bookings.filter((b) => b.clientId === c.id);
     const types = t.type === 'online' ? ['Видео повик'] : t.type === 'live' ? ['Во живо'] : ['Во живо', 'Видео повик'];
@@ -144,10 +145,10 @@ export const booking = {
       '<div class="booking"><div class="stack grow"><div class="days">' + days + '</div>' +
       '<section class="card"><h2 class="eyebrow muted">СЛОБОДНИ ТЕРМИНИ · ' + DAY_NAMES[book.day].toUpperCase() + '</h2><div class="slots">' + slots + '</div></section>' +
       '<section class="card row gap wrap"><span class="eyebrow muted grow">ТИП НА ТРЕНИНГ</span>' + chipRow(types, book.type, 'bType') + '</section>' +
-      (mine.length ? '<section class="card"><h2 class="eyebrow muted">МОИ ЗАКАЖАНИ ТЕРМИНИ</h2>' + mine.map((b) => '<div class="kv"><span>' + DAY_NAMES[b.day] + ', ' + b.time + ' · ' + esc(store.trainer(b.trainerId).name) + ' · ' + esc(b.type.toLowerCase()) + '</span><button type="button" class="link muted" data-act="bCancel" data-val="' + b.id + '">Откажи</button></div>').join('') + '</section>' : '') + '</div>' +
+      (mine.length ? '<section class="card"><h2 class="eyebrow muted">МОИ ЗАКАЖАНИ ТЕРМИНИ</h2>' + mine.map((b) => '<div class="kv"><span>' + DAY_NAMES[b.day] + ', ' + b.time + ' · ' + esc(store.trainer(b.trainerId).name) + ' · ' + esc(b.type.toLowerCase()) + (b.status === 'pending' ? ' <span class="tag tag-outline">ЧЕКА ПОТВРДА</span>' : '') + '</span><button type="button" class="link muted" data-act="bCancel" data-val="' + b.id + '">Откажи</button></div>').join('') + '</section>' : '') + '</div>' +
       '<aside class="stack w-330"><section class="card light"><div class="eyebrow">ТВОЈОТ ТЕРМИН</div><div class="display-xs">' + DAY_NAMES[book.day] + '<br>' + (book.slot || '—:—') + '</div><div class="strong small">' + esc(t.name) + ' · ' + esc(book.type.toLowerCase()) + '</div>' +
         '<div class="kv dark"><span>Цена</span><span>' + (t.pricesPublic ? price + ' ден.' : 'по договор') + '</span></div>' + (disc && t.pricesPublic ? '<div class="kv dark"><span>Премиум попуст</span><span>−' + disc + ' ден.</span></div>' : '') +
-        '<button type="button" class="btn btn-dark btn-lg" data-act="bConfirm"' + (book.slot ? '' : ' disabled') + '>ПОТВРДИ ТЕРМИН</button></section>' +
+        '<button type="button" class="btn btn-dark btn-lg" data-act="bConfirm"' + (book.slot ? '' : ' disabled') + '>' + (store.autoConfirm(t.id) ? 'ПОТВРДИ ТЕРМИН' : 'ИСПРАТИ БАРАЊЕ') + '</button></section>' +
         '<section class="card note"><span class="strong">Правило за откажување</span><br>Бесплатно откажување најдоцна ' + s.availability.cancelHours + ' часа пред терминот.' + (s.availability.deposit ? ' Се бара депозит.' : '') + '</section>' +
         '<section class="card note"><span class="strong">Плаќање</span><br>Се договарате директно со тренерот.</section></aside></div>';
     return appLayout('client', 'booking', content);
@@ -160,9 +161,11 @@ export const booking = {
     bConfirm() {
       const c = me();
       store.markStep('book');
-      store.notify(book.tid, shortName(c.name) + ' закажа термин: ' + DAY_NAMES[book.day] + ', ' + book.slot, '#/t/calendar');
-      store.set((s) => ({ ...s, bookings: [...s.bookings, { id: store.uid('b'), clientId: c.id, clientName: shortName(c.name), trainerId: book.tid, day: book.day, time: book.slot, type: book.type }] }));
-      toast('Терминот е закажан: ' + DAY_NAMES[book.day] + ', ' + book.slot + '. Ќе добиеш потсетник.');
+      if (store.slotTaken(book.tid, book.day, book.slot)) { toast('Тој термин штотуку го зафати друг клиент.'); book.slot = null; store.refresh(); return; }
+      const auto = store.autoConfirm(book.tid);
+      store.notify(book.tid, shortName(c.name) + (auto ? ' закажа термин: ' : ' бара термин: ') + DAY_NAMES[book.day] + ', ' + book.slot, '#/t/calendar');
+      store.set((s) => ({ ...s, bookings: [...s.bookings, { id: store.uid('b'), clientId: c.id, clientName: shortName(c.name), trainerId: book.tid, day: book.day, time: book.slot, type: book.type, status: auto ? 'confirmed' : 'pending' }] }));
+      toast(auto ? 'Терминот е закажан: ' + DAY_NAMES[book.day] + ', ' + book.slot + '. Ќе добиеш потсетник.' : 'Барањето е испратено. Тренерот ќе го потврди терминот.');
       book.slot = null;
     },
     bCancel(el) { store.set((s) => ({ ...s, bookings: s.bookings.filter((b) => b.id !== el.dataset.val) })); toast('Терминот е откажан.'); },

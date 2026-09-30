@@ -108,6 +108,16 @@ export const map = {
 };
 
 // ---------- Профил на тренер ----------
+export const trainerByLink = {
+  title: 'Тренер',
+  render(p) {
+    const t = store.trainerBySlug(p.slug);
+    if (!t) return notFound.render();
+    location.replace('#/trainer/' + t.id);
+    return '';
+  },
+};
+
 export const trainerProfile = {
   title: (p) => (store.trainer(p.id) || {}).name || 'Тренер',
   render(p) {

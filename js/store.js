@@ -3,6 +3,7 @@ import { TRAINERS, DEMO_REQUESTS, DEMO_CLIENTS, SEED_REVIEWS, PARTNERS, PARTNER_
 
 const KEY = 'trenirai-demo-v6';
 
+function defaultWork() { return [1, 1, 1, 1, 1, 1, 0].map((on, i) => ({ on: !!on, from: 8, to: i === 5 ? 12 : 20 })); }
 function initialState() {
   return {
     role: null,                 // null | 'client' | 'trainer'
@@ -46,7 +47,7 @@ function initialState() {
       { id: 'b3', clientId: 'c4', clientName: 'Теодора Ј.', trainerId: 't1', day: 2, time: '12:00', type: 'Видео повик' },
       { id: 'b4', clientId: 'c3', clientName: 'Дарко С.', trainerId: 't1', day: 3, time: '08:00', type: 'Видео повик' },
     ],
-    availability: { cancelHours: 24, deposit: false },
+    availability: { cancelHours: 24, deposit: false, autoConfirm: false, work: defaultWork() },
     progress: [
       { week: 1, weight: 78.0, waist: 90, workouts: 3 }, { week: 2, weight: 77.2, waist: 89, workouts: 3 },
       { week: 3, weight: 76.8, waist: 88, workouts: 4 }, { week: 4, weight: 75.9, waist: 87, workouts: 4 },
@@ -336,3 +337,22 @@ export function isLinked(clientId, trainerId) {
 }
 
 export function uid(prefix) { return prefix + Math.random().toString(36).slice(2, 8); }
+
+// ---- Работно време и слободни термини ----
+export function workOf(tid) { const a = state.availability || {}; return tid === state.trainerId && a.work ? a.work : defaultWork(); }
+export function slotsFor(tid, day) {
+  const w = workOf(tid)[day]; if (!w || !w.on) return [];
+  const out = []; for (let h = w.from; h < w.to; h++) out.push(String(h).padStart(2, '0') + ':00'); return out;
+}
+export function slotTaken(tid, day, time) { return (state.bookings || []).some((b) => b.trainerId === tid && b.day === day && b.time === time); }
+export function autoConfirm(tid) { return tid !== state.trainerId || !!(state.availability || {}).autoConfirm; }
+export function pendingBookings(tid) { return (state.bookings || []).filter((b) => b.trainerId === tid && b.status === 'pending'); }
+
+// ---- Личен линк на тренер ----
+const CYR = { а: 'a', б: 'b', в: 'v', г: 'g', д: 'd', ѓ: 'gj', е: 'e', ж: 'z', з: 'z', ѕ: 'dz', и: 'i', ј: 'j', к: 'k', л: 'l', љ: 'lj', м: 'm', н: 'n', њ: 'nj', о: 'o', п: 'p', р: 'r', с: 's', т: 't', ќ: 'kj', у: 'u', ф: 'f', х: 'h', ц: 'c', ч: 'c', џ: 'dz', ш: 's' };
+export function slugify(name) {
+  return String(name || '').toLowerCase().split('').map((ch) => (CYR[ch] !== undefined ? CYR[ch] : ch)).join('').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 30);
+}
+export function trainerSlug(t) { return t.slug || slugify(t.name) || t.id; }
+export function trainerBySlug(slug) { return allTrainers().find((t) => trainerSlug(t) === slug) || null; }
+export function trainerLink(t) { return location.origin + location.pathname + '#/u/' + trainerSlug(t); }
