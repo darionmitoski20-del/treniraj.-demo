@@ -26,7 +26,7 @@ function myClients() {
   return store.get().links.filter((l) => l.trainerId === tid()).map((l) => clientInfo(l.clientId));
 }
 
-function pendingRequests() { return store.get().requests.filter((r) => r.trainerId === tid() && r.status === 'pending'); }
+function pendingRequests() { return store.get().requests.filter((r) => r.trainerId === tid() && ['pending', 'asked'].includes(r.status)); }
 
 function accept(id) {
   const req = store.get().requests.find((x) => x.id === id);
@@ -50,17 +50,50 @@ function decline(id) {
   toast('Барањето е одбиено.');
 }
 
-const reqActions = { accept(el) { accept(el.dataset.val); }, decline(el) { decline(el.dataset.val); } };
+const ASK_IDEAS = ['Колку пати неделно можеш да тренираш?', 'Имаш ли претходно искуство или повреда?', 'Кога ти одговара прв разговор?'];
+const reqActions = {
+  accept(el) { accept(el.dataset.val); },
+  decline(el) { decline(el.dataset.val); },
+  askOpen(el) {
+    const r = store.get().requests.find((x) => x.id === el.dataset.val); if (!r) return;
+    modal('<h2 class="h2">Прашање до ' + esc(r.clientName) + '</h2><form class="stack" data-submit="askSend"><input type="hidden" name="rid" value="' + r.id + '">' +
+      '<div class="chips wrap-chips">' + ASK_IDEAS.map((q) => '<button type="button" class="chip" data-act="askIdea" data-val="' + esc(q) + '">' + esc(q) + '</button>').join('') + '</div>' +
+      '<label class="field">Твое прашање<textarea id="ask-text" name="q" rows="3" maxlength="240" placeholder="Напиши кратко прашање…"></textarea></label>' +
+      '<p class="muted small">Барањето останува кај тебе додека клиентот не одговори.</p><button type="submit" class="btn btn-accent">ПРАТИ ПРАШАЊЕ</button></form>');
+  },
+  askIdea(el) { const ta = document.getElementById('ask-text'); if (ta) ta.value = el.dataset.val; },
+  askSend(form) {
+    const q = form.q.value.trim(); if (!q) { toast('Напиши прашање.'); return; }
+    const rid = form.rid.value; const r = store.get().requests.find((x) => x.id === rid); if (!r) return;
+    store.set((st) => ({ ...st, requests: st.requests.map((x) => (x.id === rid ? { ...x, status: 'asked', question: q, answer: '', seenAt: x.seenAt || Date.now() } : x)) }));
+    store.notify(r.clientId, store.trainer(r.trainerId).name.split(' ')[0] + ' ти прати прашање за барањето', '#/c/home');
+    closeModal(); toast('Прашањето е испратено.');
+  },
+};
 
 function requestRows(list) {
   if (!list.length) return '<div class="muted small pad">Нема нови барања.</div>';
-  return list.map((r) => '<div class="list-row req"><span class="avatar">' + initials(r.clientName) + '</span><span class="grow"><span class="strong">' + esc(r.clientName) + '</span><span class="muted small">' + esc(r.goal) + (r.msg ? ' · „' + esc(r.msg) + '“' : '') + '</span></span>' +
-    '<button type="button" class="btn btn-ghost btn-sm" data-act="decline" data-val="' + r.id + '">Одбиј</button><button type="button" class="btn btn-light btn-sm" data-act="accept" data-val="' + r.id + '">Прифати</button></div>').join('');
+  return list.map((r) => {
+    const f = r.form;
+    const lines = f
+      ? [f.goal + ' · ' + f.level + ' · ' + f.mode.toLowerCase(),
+         'Денови: ' + f.days.join(', ') + ' · ' + f.times.join(', ').toLowerCase(),
+         ...f.extra.map(([q, a]) => q.replace(' (незадолжително)', '') + ': ' + a),
+         f.limits ? 'Ограничувања: ' + f.limits : ''].filter(Boolean)
+      : [r.goal];
+    return '<div class="list-row req"><span class="avatar">' + initials(r.clientName) + '</span><span class="grow"><span class="strong">' + esc(r.clientName) + '</span>' +
+      lines.map((l) => '<span class="muted small block">' + esc(l) + '</span>').join('') +
+      (r.msg ? '<span class="muted small block">„' + esc(r.msg) + '“</span>' : '') +
+      (r.status === 'asked' ? '<span class="tag tag-accent-outline">' + (r.answer ? 'КЛИЕНТОТ ОДГОВОРИ' : 'ЧЕКАШ ОДГОВОР') + '</span><span class="small block">Ти: „' + esc(r.question) + '“</span>' + (r.answer ? '<span class="small block strong">Клиент: „' + esc(r.answer) + '“</span>' : '') : '') +
+      '</span><span class="row gap-s wrap req-btns"><button type="button" class="btn btn-ghost btn-sm" data-act="askOpen" data-val="' + r.id + '">Прати прашање</button>' +
+      '<button type="button" class="btn btn-ghost btn-sm" data-act="decline" data-val="' + r.id + '">Одбиј</button><button type="button" class="btn btn-light btn-sm" data-act="accept" data-val="' + r.id + '">Прифати</button></span></div>';
+  }).join('');
 }
 
 // ---------- Преглед ----------
 export const home = {
   title: 'Преглед',
+  mount() { store.markRequestsSeen(tid()); },
   render() {
     const s = store.get(); const t = store.trainer(tid());
     const clients = myClients(); const reqs = pendingRequests();
@@ -100,6 +133,7 @@ function pkgLine(cid) { return subLine(cid, tid()); }
 const cState = { tab: 'Активни', q: '' };
 export const clients = {
   title: 'Клиенти',
+  mount() { store.markRequestsSeen(tid()); },
   render(p, query) {
     if (query.tab === 'req' && !cState.fromQuery) { cState.tab = 'Барања'; cState.fromQuery = true; }
     const s = store.get();

@@ -47,18 +47,36 @@ export const home = {
       return '<a class="card light w-320" href="#/c/plan/' + activePlan.id + '"><div class="eyebrow">АКТИВЕН ПЛАН</div><div class="h3 upper">' + esc(activePlan.name) + '</div><div class="bar"><div style="width:' + pct + '%"></div></div><div class="small strong">' + g.done + ' од ' + g.total + ' ' + planKindOf(activePlan).item + ' · ' + (g.done === g.total ? 'завршен ✓' : 'отвори и штиклирај →') + '</div></a>'; })() : '';
     const extraRow = (pkgCards || planCard) ? '<div class="row gap stack-m">' + pkgCards + planCard + '</div>' : '';
     const unreadFor = (tid) => { const th = store.thread(c.id, tid); const lastMsg = th[th.length - 1]; return lastMsg && lastMsg.from !== c.id; };
+    const reqList = s.requests.filter((r) => r.clientId === c.id && ['pending', 'asked', 'declined'].includes(r.status)).sort((a, b) => (b.sentAt || 0) - (a.sentAt || 0));
+    const step = (label, on) => '<span class="rq-step' + (on ? ' on' : '') + '"><span class="gcheck">' + (on ? '✓' : '') + '</span>' + label + '</span>';
+    const reqCard = reqList.length ? '<section class="card stack-s"><h2 class="eyebrow muted">МОИ БАРАЊА</h2>' + reqList.map((r) => {
+      const t = store.trainer(r.trainerId); const done = r.status === 'declined';
+      return '<div class="stack-s rq-item"><div class="row gap"><span class="avatar dashed">' + initials(t.name) + '</span><span class="grow"><span class="strong block">' + esc(t.name) + '</span><span class="muted small">' + esc(r.goal) + '</span></span></div>' +
+        '<div class="rq-steps">' + step('Испратено', true) + step('Видено', !!r.seenAt || r.status !== 'pending') + step(done ? 'Одбиено' : 'Одговор', done) + '</div>' +
+        (r.status === 'asked' ? '<div class="card note stack-s"><span class="strong">' + esc(t.name.split(' ')[0]) + ' те праша:</span> „' + esc(r.question) + '“' +
+          (r.answer ? '<span class="tag tag-outline">ОДГОВОРИ: ' + esc(r.answer) + '</span>' : '<form class="stack-s" data-submit="reqAnswer"><input type="hidden" name="rid" value="' + r.id + '"><label class="sr" for="ans-' + r.id + '">Одговор</label><textarea id="ans-' + r.id + '" name="a" rows="2" maxlength="240" placeholder="Твој одговор…"></textarea><button type="submit" class="btn btn-accent btn-sm">ИСПРАТИ ОДГОВОР</button></form>') + '</div>' : '') +
+        (done ? '<div class="muted small">Овој тренер моментално не е достапен. <a class="link accent strong" href="#/">Најди друг →</a></div>' : '') + '</div>';
+    }).join('') + '</section>' : '';
     const content = '<div class="page-head"><div><div class="muted small strong">' + todayLabel() + '</div><h1 class="display-s">Здраво, ' + esc(c.name.split(' ')[0]) + '</h1></div>' +
       '<div class="pill"><span class="avatar sm accent-bg">' + (ch ? ch.done : 0) + '</span>дена активност по ред</div></div>' +
       '<div class="row gap stack-m">' + nextCard +
       '<section class="card w-320"><div class="eyebrow muted">ЦЕЛ: −' + c.goalKg + ' КГ</div><div class="display-xs">' + pct + '<span class="muted">%</span></div><div class="bar"><div style="width:' + pct + '%"></div></div><div class="muted small">Изгубени ' + lost.toFixed(1) + ' кг од почетокот</div><a class="link accent strong" href="#/c/progress">+ Внеси напредок →</a></section></div>' +
-      extraRow + '<div class="row gap stack-m"><section class="card grow"><h2 class="eyebrow muted">МОИ ТРЕНЕРИ</h2>' +
+      reqCard + extraRow + '<div class="row gap stack-m"><section class="card grow"><h2 class="eyebrow muted">МОИ ТРЕНЕРИ</h2>' +
         trainers.map((t) => '<a class="list-row" href="#/c/messages/' + t.id + '"><span class="avatar">' + initials(t.name) + '</span><span class="grow"><span class="strong">' + esc(t.name) + '</span><span class="muted small">' + esc(t.sport) + (unreadFor(t.id) ? ' · нова порака' : '') + '</span></span>' + (unreadFor(t.id) ? '<span class="dot-accent"></span>' : '') + '</a>').join('') +
-        pending.map((r) => { const t = store.trainer(r.trainerId); return '<div class="list-row dim"><span class="avatar dashed">' + initials(t.name) + '</span><span class="grow"><span class="strong">' + esc(t.name) + '</span><span class="muted small">' + esc(t.sport) + ' · барањето чека одговор</span></span></div>'; }).join('') +
         '<a class="btn btn-ghost btn-sm" href="#/">+ Најди уште тренер</a></section>' +
       '<section class="stack w-320">' +
         (ch && ch.joined ? '<a class="card light" href="#/c/challenges"><div class="eyebrow">АКТИВЕН ПРЕДИЗВИК</div><div class="h3 upper">30 дена движење</div><div class="small strong">Ден ' + ch.done + ' од 30' + (ch.today ? ' · денес ✓' : ' · денес уште не') + '</div></a>' : '<a class="card light" href="#/c/challenges"><div class="eyebrow">ПРЕДИЗВИЦИ</div><div class="h3 upper">Приклучи се</div></a>') +
         '<a class="card" href="#/partner/p3"><div class="eyebrow muted">КУПОН ОД ПАРТНЕР</div><div class="strong">' + esc(store.partner('p3').name) + (store.partner('p3').offer ? ' · ' + esc(store.partner('p3').offer) : '') + '</div><span class="link accent strong small">Сите партнери →</span></a></section></div>';
     return appLayout('client', 'home', content);
+  },
+  actions: {
+    reqAnswer(form) {
+      const a = form.a.value.trim(); if (!a) { toast('Напиши одговор.'); return; }
+      const r = store.get().requests.find((x) => x.id === form.rid.value); if (!r) return;
+      store.set((st) => ({ ...st, requests: st.requests.map((x) => (x.id === r.id ? { ...x, answer: a } : x)) }));
+      store.notify(r.trainerId, store.clientName(r.clientId) + ' одговори на твоето прашање', '#/t/clients?tab=req');
+      toast('Одговорот е испратен.');
+    },
   },
 };
 

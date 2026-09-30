@@ -1,6 +1,7 @@
 // Јавни страни: почетна, мапа, профил на тренер, регистрација, квиз, партнери, предизвици.
 import { DEMO_PHOTOS } from '../photos.js';
-import { kindLabels } from '../kinds.js';
+import { kindLabels, kindsOf, REQ_GOALS, REQ_LEVELS, REQ_QUESTIONS, REQ_MODES, REQ_TIMES } from '../kinds.js';
+import { DAY_SHORT as DAYS } from '../data.js';
 import * as store from '../store.js';
 import { SPORTS, CITIES, CHALLENGES, LEADERBOARD_OTHERS, PARTNER_CATEGORIES } from '../data.js';
 import { esc, initials, icon, publicLayout, appLayout, chipRow, photo, trainerPhoto, partnerPhoto, stars, priceLabel, typeLabel, toast, modal, closeModal } from '../ui.js';
@@ -153,40 +154,58 @@ export const trainerProfile = {
     request(el) {
       const s = store.get();
       if (s.role !== 'client') { location.hash = '#/signup?next=' + encodeURIComponent('/trainer/' + el.dataset.val); return; }
-      const t = store.trainer(el.dataset.val);
-      modal('<h2 class="h2">Барање до ' + esc(t.name) + '</h2><form data-submit="sendRequest" class="stack"><input type="hidden" name="tid" value="' + t.id + '">' +
-        '<label class="field">Твоја цел<select name="goal"><option>Намалување тежина</option><option>Сила и маса</option><option>Кондиција</option><option>Подготовка за натпревар</option></select></label>' +
-        '<label class="field">Тип<select name="type"><option>Во живо</option><option>Онлајн</option></select></label>' +
-        '<label class="field">Порака (незадолжително)<textarea name="msg" rows="3" placeholder="Кажи му на тренерот нешто за себе…"></textarea></label>' +
-        '<div class="row gap"><button type="button" class="btn btn-ghost" data-act="closeModal">Откажи</button><button type="submit" class="btn btn-accent grow">ИСПРАТИ БАРАЊЕ</button></div></form>');
+      rq.tid = el.dataset.val; rq.step = 0;
+      rq.d = { goal: '', level: '', mode: '', days: [], times: [], extra: {}, limits: '', msg: '' };
+      renderReq();
     },
-    sendRequest(form) {
-      const f = new FormData(form);
-      const s = store.get();
-      const tid = f.get('tid');
-      const rid = store.uid('r');
-      const t = store.trainer(tid);
+    rqPick(el) {
+      const [f, v] = el.dataset.val.split('|');
+      if (f.startsWith('x:')) rq.d.extra[f.slice(2)] = rq.d.extra[f.slice(2)] === v ? '' : v;
+      else if (Array.isArray(rq.d[f])) rq.d[f] = rq.d[f].includes(v) ? rq.d[f].filter((x) => x !== v) : [...rq.d[f], v];
+      else rq.d[f] = v;
+      renderReq();
+    },
+    rqText(el) { rq.d[el.dataset.val] = el.value; },
+    rqBack() { rq.step = Math.max(0, rq.step - 1); renderReq(); },
+    rqNext() {
+      const d = rq.d;
+      if (rq.step === 0 && !(d.goal && d.level && d.mode)) { toast('Избери цел, ниво и начин.'); return; }
+      if (rq.step === 1 && !(d.days.length && d.times.length)) { toast('Избери барем еден ден и време.'); return; }
+      rq.step += 1; renderReq();
+    },
+    rqSend() {
+      const s = store.get(); const d = rq.d;
+      const tid = rq.tid; const rid = store.uid('r'); const t = store.trainer(tid);
+      const extra = questionsFor(t).map((q) => [q.q, d.extra[q.id]]).filter(([, a]) => a);
       store.markStep('request');
       store.notify(tid, 'Ново барање од ' + shortName(s.client.name), '#/t/clients?tab=req');
-      store.set((st) => ({ ...st, requests: [...st.requests, { id: rid, clientId: s.client.id, clientName: shortName(s.client.name), trainerId: tid, goal: f.get('goal') + ' · ' + f.get('type').toLowerCase(), msg: f.get('msg'), status: 'pending' }] }));
+      const req = { id: rid, clientId: s.client.id, clientName: shortName(s.client.name), trainerId: tid, goal: d.goal + ' · ' + d.mode.toLowerCase(), msg: d.msg.trim(), status: 'pending', sentAt: Date.now(), seenAt: null,
+        form: { goal: d.goal, level: d.level, mode: d.mode, days: d.days, times: d.times, extra, limits: d.limits.trim() } };
+      store.set((st) => ({ ...st, requests: [...st.requests, req] }));
       closeModal();
       if (tid === s.trainerId) {
-        // демо тренерот: барањето го прифаќаш ти, од другата страна
-        toast('Испратено! Префрли се во улога „Тренер“ (долу десно) за да го видиш барањето од другата страна.');
+        toast('Испратено! Префрли се во улога „Тренер“ за да го видиш барањето од другата страна.');
       } else {
-        toast('Барањето е испратено. Ќе добиеш известување кога тренерот ќе одговори.');
-        // другите тренери во демото одговараат сами по неколку секунди
+        toast('Барањето е испратено. Ќе видиш кога тренерот ќе го отвори и ќе одговори.');
+        // другите тренери во демото го гледаат и одговараат сами по неколку секунди
         setTimeout(() => {
           const cur = store.get().requests.find((r) => r.id === rid);
           if (!cur || cur.status !== 'pending') return;
+          store.notify(s.client.id, t.name.split(' ')[0] + ' го виде твоето барање', '#/c/home');
+          store.set((st) => ({ ...st, requests: st.requests.map((r) => (r.id === rid ? { ...r, seenAt: Date.now() } : r)) }));
+        }, 2000);
+        setTimeout(() => {
+          const cur = store.get().requests.find((r) => r.id === rid);
+          if (!cur || !['pending', 'asked'].includes(cur.status)) return;
           store.notify(s.client.id, t.name + ' го прифати твоето барање', '#/c/messages/' + tid);
           const key = store.threadKey(s.client.id, tid);
           store.set((st) => ({ ...st,
             requests: st.requests.map((r) => (r.id === rid ? { ...r, status: 'accepted' } : r)),
             links: [...st.links, { clientId: s.client.id, trainerId: tid, since: 'нов' }],
             threads: { ...st.threads, [key]: [...(st.threads[key] || []), { from: tid, text: 'Здраво! Го прифатив барањето. Кога ти одговара бесплатен прв разговор?', at: Date.now() }] } }));
+          store.addSub(s.client.id, tid, t.onlinePrice || (t.price ? t.price * 4 : 3000));
           toast(t.name + ' го прифати твоето барање!');
-        }, 5000);
+        }, 6000);
       }
     },
     waitlist() { toast('Те ставивме на листата на чекање. Ќе те известиме кога ќе се ослободи место.'); },
@@ -195,6 +214,41 @@ export const trainerProfile = {
 };
 
 export function shortName(n) { const p = String(n).split(' '); return p[0] + (p[1] ? ' ' + p[1][0] + '.' : ''); }
+
+// ---------- Барање до тренер: анкета во 3 чекори ----------
+const rq = { tid: null, step: 0, d: null };
+function questionsFor(t) {
+  const out = [];
+  kindsOf(t).forEach((k) => (REQ_QUESTIONS[k] || []).forEach((q) => { if (out.length < 2 && !out.some((x) => x.id === q.id)) out.push(q); }));
+  return out;
+}
+function goalsFor(t) { return [...new Set(kindsOf(t).flatMap((k) => REQ_GOALS[k] || []))].slice(0, 6); }
+function rqChips(field, list, sel) {
+  return '<div class="chips wrap-chips">' + list.map((v) => { const on = Array.isArray(sel) ? sel.includes(v) : sel === v;
+    return '<button type="button" class="chip' + (on ? ' on accent-chip' : '') + '" data-act="rqPick" data-val="' + esc(field + '|' + v) + '" aria-pressed="' + on + '">' + esc(v) + '</button>'; }).join('') + '</div>';
+}
+function renderReq() {
+  const t = store.trainer(rq.tid); const d = rq.d; const last = rq.step === 2;
+  let body;
+  if (rq.step === 0) {
+    body = '<div class="stack-s"><span class="eyebrow muted">ЦЕЛ</span>' + rqChips('goal', goalsFor(t), d.goal) + '</div>' +
+      '<div class="stack-s"><span class="eyebrow muted">НИВО НА ИСКУСТВО</span>' + rqChips('level', REQ_LEVELS, d.level) + '</div>' +
+      '<div class="stack-s"><span class="eyebrow muted">КАКО САКАШ ДА ТРЕНИРАШ</span>' + rqChips('mode', REQ_MODES, d.mode) + '</div>';
+  } else if (rq.step === 1) {
+    body = '<div class="stack-s"><span class="eyebrow muted">КОИ ДЕНОВИ ТИ ОДГОВАРААТ</span>' + rqChips('days', DAYS.map((x) => x[0] + x.slice(1).toLowerCase()), d.days) + '</div>' +
+      '<div class="stack-s"><span class="eyebrow muted">КОЕ ВРЕМЕ</span>' + rqChips('times', REQ_TIMES, d.times) + '</div>';
+  } else {
+    body = questionsFor(t).map((q) => '<div class="stack-s"><span class="eyebrow muted">' + esc(q.q.toUpperCase()) + '</span>' + rqChips('x:' + q.id, q.opts, d.extra[q.id]) + '</div>').join('') +
+      '<label class="field">Повреди или ограничувања (незадолжително)<textarea rows="2" data-input="rqText" data-val="limits" placeholder="на пр. болка во колено">' + esc(d.limits) + '</textarea></label>' +
+      '<p class="muted small">Ова го гледа само ' + esc(t.name.split(' ')[0]) + ' и го споделуваш по желба.</p>' +
+      '<label class="field">Порака (незадолжително)<textarea rows="2" data-input="rqText" data-val="msg" placeholder="Кажи нешто за себе…">' + esc(d.msg) + '</textarea></label>';
+  }
+  modal('<div class="row gap"><h2 class="h2 grow">Барање до ' + esc(t.name.split(' ')[0]) + '</h2><span class="muted small strong">' + (rq.step + 1) + ' / 3</span></div>' +
+    '<div class="dots">' + [0, 1, 2].map((i) => '<span class="dot-step' + (i <= rq.step ? ' on' : '') + '"></span>').join('') + '</div>' +
+    '<div class="stack">' + body + '</div>' +
+    '<div class="row gap">' + (rq.step ? '<button type="button" class="btn btn-ghost" data-act="rqBack">← Назад</button>' : '<button type="button" class="btn btn-ghost" data-act="closeModal">Откажи</button>') +
+      '<button type="button" class="btn btn-accent grow" data-act="' + (last ? 'rqSend' : 'rqNext') + '">' + (last ? 'ИСПРАТИ БАРАЊЕ' : 'ПОНАТАМУ →') + '</button></div>');
+}
 
 // ---------- Регистрација ----------
 let signupRole = null;

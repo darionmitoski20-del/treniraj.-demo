@@ -285,7 +285,17 @@ export function clientTrainers(clientId) {
 }
 
 export function pendingRequestFrom(clientId, trainerId) {
-  return state.requests.find((r) => r.clientId === clientId && r.trainerId === trainerId && r.status === 'pending');
+  return state.requests.find((r) => r.clientId === clientId && r.trainerId === trainerId && ['pending', 'asked'].includes(r.status));
+}
+// Тренерот ги отвори барањата: клиентот гледа „Видено“ (без нов приказ, само зачувано + известување)
+export function markRequestsSeen(trainerId) {
+  const now = Date.now(); const add = [];
+  const requests = state.requests.map((r) => {
+    if (r.trainerId !== trainerId || r.status !== 'pending' || r.seenAt || !r.form) return r;
+    add.push({ id: uid('n'), to: r.clientId, text: trainer(trainerId).name.split(' ')[0] + ' го виде твоето барање', href: '#/c/home', at: now, read: false });
+    return { ...r, seenAt: now };
+  });
+  if (add.length) { state = { ...state, requests, notifications: [...add, ...(state.notifications || [])].slice(0, 60) }; save(); }
 }
 
 export function isLinked(clientId, trainerId) {

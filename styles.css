@@ -753,3 +753,13 @@ a.msg-recipe { text-decoration: none; }
   .copy-row > .muted { flex: 1 0 100%; font-size: 12px; }
   .copy-row > .grow { flex: 1 1 0; min-width: 0; }
 }
+
+/* v7: барање до тренер */
+.rq-steps { display: flex; gap: 6px; flex-wrap: wrap; }
+.rq-step { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 800; letter-spacing: .04em; color: var(--muted); padding: 6px 10px 6px 6px; border: 1px solid var(--line2); border-radius: 999px; }
+.rq-step.on { color: var(--text); border-color: var(--accent); }
+.rq-step .gcheck { width: 18px; height: 18px; font-size: 11px; }
+.rq-item + .rq-item { border-top: 1px solid var(--line2); padding-top: 14px; }
+.req-btns { flex: 1 1 100%; }
+.req-btns .btn { flex: 1 1 0; }
+.rq-step.on .gcheck { background: var(--accent); border-color: var(--accent); color: var(--dark, #0B0F0B); }
