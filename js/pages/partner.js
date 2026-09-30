@@ -44,7 +44,7 @@ export const profile = {
     const content = '<div class="page-head"><h1 class="display-s">Уреди профил</h1><a class="btn btn-ghost btn-sm" href="#/partner/' + p.id + '">Види јавно</a></div>' +
       '<form class="stack form-page" data-submit="save">' +
       '<section class="card stack-s"><h2 class="eyebrow muted">ОСНОВНО</h2>' +
-        '<div class="row gap"><button type="button" class="upload square" data-act="upload">+<br>Лого</button><button type="button" class="upload grow" data-act="upload">+ Фотографии од просторот</button></div>' +
+        '<div class="row gap"><button type="button" class="upload square" data-act="pickPhoto" data-val="partner">+<br>Лого / слика</button><button type="button" class="upload grow" data-act="upload">+ Фотографии од просторот</button></div>' +
         field('Име на бизнисот', 'name', p.name, 'required') +
         '<label class="field">Категорија<select name="category">' + opt(PARTNER_CATEGORIES, p.category) + '</select></label>' +
         '<label class="field">Опис<textarea name="desc" rows="3" maxlength="300" placeholder="Што нудите, по што сте различни…">' + esc(p.desc || '') + '</textarea></label></section>' +

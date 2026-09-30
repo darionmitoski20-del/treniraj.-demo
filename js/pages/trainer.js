@@ -293,7 +293,7 @@ export const profile = {
   render() {
     const t = store.trainer(tid());
     const content = '<div class="page-head"><h1 class="display-s">Мој профил</h1><a class="btn btn-ghost btn-sm" href="#/trainer/' + t.id + '">Види како клиент</a></div>' +
-      '<form class="booking" data-submit="saveProfile"><div class="stack grow"><div class="row gap"><button type="button" class="upload square" data-act="upPhoto">+<br>Главна фотографија</button><button type="button" class="upload grow" data-act="upPhoto">▶ Видео презентација · до 60 сек.</button></div>' +
+      '<form class="booking" data-submit="saveProfile"><div class="stack grow"><div class="row gap"><button type="button" class="upload square" data-act="pickPhoto" data-val="trainer">' + (t.photo ? '✓<br>Смени' : '+<br>Главна фотографија') + '</button><button type="button" class="upload grow" data-act="upPhoto">▶ Видео презентација · до 60 сек.</button></div>' +
       '<section class="card grid-2 gap-s"><label class="field">Име и презиме<input name="name" value="' + esc(t.name) + '"></label><label class="field">Локација на тренирање<input name="area" value="' + esc(t.city + (t.area ? ', ' + t.area : '')) + '"></label>' +
         '<label class="field span-2">За мене<textarea name="bio" rows="3">' + esc(t.bio) + '</textarea></label>' +
         '<div class="span-2 stack-s"><span class="eyebrow muted">МОЈ ТИП НА ТРЕНЕР (го прилагодува менито и плановите)</span><div class="chips wrap-chips">' + KIND_IDS.map((k) => '<button type="button" class="chip' + (kindsOf(t).includes(k) ? ' on accent-chip' : '') + '" data-act="toggleKind" data-val="' + k + '" aria-pressed="' + kindsOf(t).includes(k) + '">' + KINDS[k].label + '</button>').join('') + '</div></div>' +

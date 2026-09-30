@@ -2,7 +2,7 @@
 import { kindLabels } from '../kinds.js';
 import * as store from '../store.js';
 import { SPORTS, CITIES, CHALLENGES, LEADERBOARD_OTHERS, PARTNER_CATEGORIES } from '../data.js';
-import { esc, initials, icon, publicLayout, appLayout, chipRow, photo, stars, priceLabel, typeLabel, toast, modal, closeModal } from '../ui.js';
+import { esc, initials, icon, publicLayout, appLayout, chipRow, photo, trainerPhoto, partnerPhoto, stars, priceLabel, typeLabel, toast, modal, closeModal } from '../ui.js';
 import { reviewsBlock, reviewActions, postCard, postActions } from './social.js';
 
 // ---------- Почетна / пребарување ----------
@@ -20,7 +20,7 @@ function filterTrainers() {
 
 export function trainerCard(t, rank) {
   return '<a class="tcard" href="#/trainer/' + t.id + '">' +
-    '<div class="tcard-photo">' + photo('', 'person') +
+    '<div class="tcard-photo">' + photo('', 'person', '', trainerPhoto(t)) +
       (rank ? '<span class="tcard-rank">#' + rank + '</span>' : '') +
       (t.founder ? '<span class="tag tag-light tcard-tag">ОСНОВАЧ</span>' : '') + '</div>' +
     '<div class="tcard-body"><span class="strong">' + esc(t.name) + '</span>' +
@@ -43,7 +43,7 @@ export const home = {
         '<label>ТИП<select name="type">' + ['Сите', 'Онлајн', 'Во живо'].map((o) => '<option' + (o === search.type ? ' selected' : '') + '>' + o + '</option>').join('') + '</select></label>' +
         '<button type="submit" class="btn btn-accent">' + icon.search + ' БАРАЈ</button></form>' +
       '<a class="quiz-link" href="#/quiz">Не си сигурен? <span class="accent">Направи квиз од 5 прашања →</span></a></div>' +
-      '<div class="hero-visual">' + photo('ФОТО: ТРЕНЕР ВО АКЦИЈА', 'dumbbell', 'photo-hero') +
+      '<div class="hero-visual">' + photo('ФОТО: ТРЕНЕР ВО АКЦИЈА', 'dumbbell', 'photo-hero', 'img/hero.jpg') +
         '<div class="float-card"><span class="avatar">МС</span><span><span class="strong">Марија Стојанова</span><span class="muted-dark small">Фитнес · ★ 4.9</span></span><span class="tag tag-dark">ТРЕНЕР НА МЕСЕЦОТ</span></div>' +
         '<div class="sticker">Прв разговор бесплатно</div></div></section>';
     const ticker = '<div class="ticker" aria-hidden="true">' + SPORTS.map((s) => '<span>' + s.toUpperCase() + '</span><span>✦</span>').join('') + '</div>';
@@ -128,7 +128,7 @@ export const trainerProfile = {
     if (!services.length) services.push(['Тренинг', 'На барање']);
     services.push(['Прв разговор', '<span class="accent">Бесплатно</span>']);
     const content = '<div class="profile">' +
-      '<aside class="profile-side">' + '<div class="profile-photo">' + photo('ФОТО / ВИДЕО', 'person', 'photo-tall') +
+      '<aside class="profile-side">' + '<div class="profile-photo">' + photo('ФОТО / ВИДЕО', 'person', 'photo-tall', trainerPhoto(t)) +
         (t.monthTop ? '<span class="tag tag-accent profile-top">ТРЕНЕР НА МЕСЕЦОТ</span>' : '') +
         '<button type="button" class="round-play" data-act="video" aria-label="Пушти видео презентација">' + icon.play + '</button></div>' +
         '<div class="row gap' + (s.role === 'trainer' ? '' : ' cta-bar') + '">' + cta + '</div>' +
@@ -315,7 +315,7 @@ export function partnersContent() {
   const feat = all.find((p) => p.featured);
   return '<div class="section-head"><h1 class="display-s">Партнери</h1><div class="chips">' + chipRow(cats, partnerState.cat, 'pCat') + '</div></div>' +
     '<div class="partners-layout"><div class="stack">' +
-    '<section class="featured"><div class="featured-photo">' + photo('', 'dumbbell') + '</div><div class="featured-body"><div class="eyebrow">ИЗДВОЕН ПАРТНЕР</div><a class="h2 upper plink" href="#/partner/' + feat.id + '">' + esc(feat.name) + '</a><div class="strong small">' + esc(feat.category) + ' · ' + esc(feat.city) + (feat.address ? ', ' + esc(feat.address) : '') + '</div></div>' +
+    '<section class="featured"><div class="featured-photo">' + photo('', 'dumbbell', '', partnerPhoto(feat)) + '</div><div class="featured-body"><div class="eyebrow">ИЗДВОЕН ПАРТНЕР</div><a class="h2 upper plink" href="#/partner/' + feat.id + '">' + esc(feat.name) + '</a><div class="strong small">' + esc(feat.category) + ' · ' + esc(feat.city) + (feat.address ? ', ' + esc(feat.address) : '') + '</div></div>' +
     '<div class="featured-cta">' + (feat.offer ? '<div class="coupon"><div class="small strong">' + esc(feat.offer) + '</div></div><button type="button" class="btn btn-dark" data-act="coupon" data-val="' + feat.id + '">ЗЕМИ КУПОН</button>' : '') + '<a class="btn btn-outline-dark btn-sm" href="#/partner/' + feat.id + '">ПРОФИЛ</a></div></section>' +
     (list.length ? '<div class="grid-3">' + list.map(partnerCard).join('') + '</div>' : '<div class="empty">Нема партнери во оваа категорија.</div>') + '</div>' +
     '<aside class="stack"><section class="card light"><h2 class="h3 upper">Имаш бизнис во спортот?</h2><p class="small">Направи профил со локација, контакт и понуди. Клиентите и тренерите на Тренирај ќе те најдат.</p><div class="small strong">Месечна претплата · купоните се незадолжителни</div><a class="btn btn-dark" href="#/signup?role=partner">СТАНИ ПАРТНЕР</a></section>' +
@@ -342,7 +342,7 @@ export const partnerProfile = {
     if (!p) return notFound.render();
     const s = store.get();
     const content = '<div class="profile">' +
-      '<aside class="profile-side"><div class="profile-photo">' + photo('ФОТО / ЛОГО', 'dumbbell', 'photo-tall') + (p.featured ? '<span class="tag tag-accent profile-top">ИЗДВОЕН ПАРТНЕР</span>' : '') + '</div>' +
+      '<aside class="profile-side"><div class="profile-photo">' + photo('ФОТО / ЛОГО', 'dumbbell', 'photo-tall', partnerPhoto(p)) + (p.featured ? '<span class="tag tag-accent profile-top">ИЗДВОЕН ПАРТНЕР</span>' : '') + '</div>' +
         (p.offer ? '<section class="card accent-card"><div class="eyebrow">ПОНУДА ЗА КОРИСНИЦИТЕ НА ТРЕНИРАЈ</div><div class="display-xs">' + esc(p.offer) + '</div><button type="button" class="btn btn-dark" data-act="coupon" data-val="' + p.id + '">ЗЕМИ КУПОН</button></section>' : '') +
         (s.role === 'partner' && s.partnerId === p.id ? '<a class="btn btn-ghost" href="#/p/profile">Уреди го профилот</a>' : '') + '</aside>' +
       '<section class="profile-main"><div class="row gap-s wrap"><span class="tag tag-light">' + esc(p.category.toUpperCase()) + '</span><span class="tag tag-outline">ПАРТНЕР</span></div>' +

@@ -60,7 +60,7 @@ function stepBody() {
     return '<h1 class="display-s">Кажи нешто за себе</h1><p class="lead">2–3 реченици: искуство, пристап, со кого најмногу сакаш да работиш.</p>' +
       '<label class="field">За мене<textarea rows="5" maxlength="400" data-input="wField" data-val="bio" placeholder="На пр. Сертифициран тренер со 5 години искуство. Работам со почетници и со луѓе што сакаат да ослабат без гладување.">' + esc(d.bio) + '</textarea></label>' +
       '<label class="field">Сертификати (одвои со запирка)<input value="' + esc(d.certs) + '" data-input="wField" data-val="certs" placeholder="на пр. NASM, Нутриционист ниво 2"></label>' +
-      '<div class="row gap"><button type="button" class="upload square" data-act="wPhoto">+<br>Фотографија</button><button type="button" class="upload grow" data-act="wPhoto">▶ Видео до 60 сек. (незадолжително)</button></div>';
+      '<div class="row gap"><button type="button" class="upload square" data-act="pickPhoto" data-val="trainer">+<br>Фотографија</button><button type="button" class="upload grow" data-act="wPhoto">▶ Видео до 60 сек. (незадолжително)</button></div>';
   }
   const t = previewTrainer();
   return '<h1 class="display-s">Така те гледаат клиентите</h1><p class="lead">Ако сè е во ред, објави го профилот.</p><div class="preview-card">' + trainerCard(t, 0) + '</div>' +

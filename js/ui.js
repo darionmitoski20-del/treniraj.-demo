@@ -54,9 +54,13 @@ export function typeLabel(type) {
   return type === 'online' ? 'Онлајн' : type === 'live' ? 'Во живо' : 'Онлајн и во живо';
 }
 
-export function photo(label, iconName = 'person', cls = '') {
-  return '<div class="photo ' + cls + '">' + '<span class="photo-icon">' + icon[iconName] + '</span>' + (label ? '<span class="photo-label">' + esc(label) + '</span>' : '') + '</div>';
+export function photo(label, iconName = 'person', cls = '', src = '') {
+  // Ако сликата постои (прикачена или во папката img/) се прикажува преку местото за слика; ако не постои, останува местото.
+  const img = src ? '<img class="photo-img" src="' + esc(src) + '" alt="" loading="lazy" onerror="this.remove()">' : '';
+  return '<div class="photo ' + cls + '">' + '<span class="photo-icon">' + icon[iconName] + '</span>' + (label && !src ? '<span class="photo-label">' + esc(label) + '</span>' : '') + img + '</div>';
 }
+export const trainerPhoto = (t) => (t && (t.photo || (t.id && t.id !== 'preview' ? 'img/trainers/' + t.id + '.jpg' : ''))) || '';
+export const partnerPhoto = (p) => (p && (p.photo || (p.id ? 'img/partners/' + p.id + '.jpg' : ''))) || '';
 
 // Надворешни куки што ги поставува app.js (на пр. бројач на водичот)
 export const hooks = { guideLabel: () => 'Водич' };

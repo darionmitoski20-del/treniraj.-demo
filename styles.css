@@ -731,3 +731,8 @@ a.msg-recipe { text-decoration: none; }
   .plan-table.pk-x .tr > :nth-child(4) { grid-column: 2 / 5; grid-row: 3; }
   .plan-table.pk-x .tr > :nth-child(6) { grid-row: 4; }
 }
+
+/* v5: вистински слики */
+.photo { background-image: radial-gradient(120% 90% at 20% 0%, rgba(255, 90, 31, .16), transparent 60%), repeating-linear-gradient(135deg, rgba(255,255,255,.028) 0 2px, transparent 2px 14px); }
+.photo-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1; }
+.tcard-photo, .profile-photo, .featured-photo { overflow: hidden; }
