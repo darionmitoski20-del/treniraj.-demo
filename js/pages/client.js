@@ -1,4 +1,5 @@
 // Страни за најавен клиент.
+import { subText, subTag } from './pay.js';
 import { planKindOf } from '../kinds.js';
 import * as store from '../store.js';
 import { CHALLENGES, LEADERBOARD_OTHERS, DAY_NAMES, DAY_SHORT, SLOT_TIMES } from '../data.js';
@@ -34,12 +35,11 @@ export const home = {
       ? '<section class="card accent-card grow"><div class="eyebrow">СЛЕДЕН ТРЕНИНГ</div><div class="display-xs">' + DAY_NAMES[next.day] + ', ' + next.time + '</div><div class="strong">Со ' + esc(nextT.name) + ' · ' + esc(next.type.toLowerCase()) + '</div>' +
         '<div class="row gap-s"><a class="btn btn-dark btn-sm" href="#/c/messages/' + next.trainerId + '">Отвори чет</a><a class="btn btn-outline-dark btn-sm" href="#/c/booking?t=' + next.trainerId + '">Промени термин</a></div></section>'
       : '<section class="card accent-card grow"><div class="eyebrow">НЕМАШ ЗАКАЖАН ТРЕНИНГ</div><div class="display-xs">Закажи го следниот</div><a class="btn btn-dark btn-sm" href="#/c/booking">Закажи термин</a></section>';
-    const pkgCards = trainers.map((t) => ({ t, pk: store.packageFor(c.id, t.id) })).filter((x) => x.pk).map(({ t, pk }) => {
-      const left = pk.total - pk.used;
-      return '<section class="card grow stack-s"><div class="eyebrow muted">МОЈ ПАКЕТ · ' + esc(t.name.toUpperCase()) + '</div><div class="row gap baseline"><span class="display-xs">' + pk.used + ' / ' + pk.total + '</span><span class="muted">термини искористени</span></div>' +
-        '<div class="bar' + (left <= 2 ? ' warn' : '') + '"><div style="width:' + Math.round((pk.used / pk.total) * 100) + '%"></div></div>' +
-        '<div class="row gap-s wrap"><span class="small strong">' + (left ? 'Остануваат ' + left : 'Пакетот е искористен') + '</span><span class="tag ' + (pk.paid ? 'tag-outline' : 'tag-accent') + '">' + (pk.paid ? 'ПЛАТЕНО' : 'ЧЕКА ПЛАЌАЊЕ · ' + den(pk.price) + ' ДЕН.') + '</span></div>' +
-        (left <= 2 ? '<a class="link accent strong small" href="#/c/messages/' + t.id + '">Договори нов пакет со ' + esc(t.name.split(' ')[0]) + ' →</a>' : '') + '</section>';
+    const pkgCards = trainers.map((t) => ({ t, sb: store.subFor(c.id, t.id) })).filter((x) => x.sb).map(({ t, sb }) => {
+      const st = store.subState(sb);
+      return '<section class="card grow stack-s' + (st === 'ok' ? '' : ' accent-line') + '"><div class="row gap"><div class="eyebrow muted grow">МОЈА ПРЕТПЛАТА · ' + esc(t.name.toUpperCase()) + '</div>' + subTag(sb) + '</div>' +
+        '<div class="display-xs">' + subText(sb) + '</div><div class="muted small">' + den(sb.price) + ' ден. месечно</div>' +
+        '<a class="link accent strong small" href="#/c/payments">' + (st === 'ok' ? 'Мои плаќања →' : 'Како да платам →') + '</a></section>';
     }).join('');
     const allPlans = store.plansFor(c.id);
     const activePlan = allPlans.find((pl) => { const g = store.planProgress(pl); return g.done < g.total; }) || allPlans[0];

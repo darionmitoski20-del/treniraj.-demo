@@ -6,6 +6,7 @@ import { esc, initials, appLayout, toast, modal, closeModal, chipRow, lineChart,
 import { chatBubbles, composer, send, attachVideo, scrollChat } from './chat.js';
 import { shortName } from './public.js';
 import { recipeActions } from './recipes.js';
+import { subLine, subText, subTag, payActions, fmtDate } from './pay.js';
 
 const tid = () => store.get().trainerId;
 
@@ -38,6 +39,8 @@ function accept(id) {
     const welcome = { from: r.trainerId, text: 'Здраво! Го прифатив твоето барање. Кога ти одговара прв разговор?', at: Date.now() };
     return { ...s, links, requests: s.requests.map((x) => (x.id === id ? { ...x, status: 'accepted' } : x)), threads: { ...s.threads, [key]: [...(s.threads[key] || []), welcome] } };
   });
+  const tr = store.trainer(req.trainerId); const price = tr.onlinePrice || (tr.price ? tr.price * 4 : 3000);
+  store.addSub(req.clientId, req.trainerId, price);
   toast('Барањето е прифатено. Клиентот доби порака.');
 }
 function decline(id) {
@@ -66,16 +69,16 @@ export const home = {
     const todays = week.filter((b) => b.day === todayIdx).sort((a, b) => a.time.localeCompare(b.time));
     const earnings = store.monthEarnings(t.id);
     const unpaid = store.unpaidTotal(t.id);
-    const expiring = store.expiringPackages(t.id);
+    const expiring = store.dueSubs(t.id).slice(0, 5);
     const reached = t.isNew ? 0 : clients.filter((c) => c.progress >= 80).length + 12;
     const goalCard = t.isNew
       ? '<div class="card light"><div class="eyebrow">СЛЕДНО ДОСТИГНУВАЊЕ</div><div class="h3 upper">Прва ѕвезда</div><div class="bar"><div style="width:0%"></div></div><div class="small strong">Добиј ја првата оценка од клиент · награда: беџ на профилот</div></div>'
       : '<div class="card light"><div class="eyebrow">СЛЕДНО ДОСТИГНУВАЊЕ</div><div class="h3 upper">Мајстор за резултати</div><div class="bar"><div style="width:' + Math.round((reached / 20) * 100) + '%"></div></div><div class="small strong">' + reached + ' од 20 клиенти ја постигнале целта · награда: 30 дена истакнување</div></div>';
-    const expBlock = expiring.length ? '<div class="card"><h2 class="eyebrow muted">ПАКЕТИ ШТО ИСТЕКУВААТ</h2>' + expiring.map((pk) => { const left = pk.total - pk.used;
-      return '<a class="list-row" href="#/t/clients/' + pk.clientId + '"><span class="avatar">' + initials(store.clientName(pk.clientId)) + '</span><span class="grow"><span class="strong">' + esc(store.clientName(pk.clientId)) + '</span><span class="muted small">' + (left ? 'остануваат ' + left + ' од ' + pk.total : 'искористен ' + pk.total + '/' + pk.total) + '</span></span><span class="accent strong small">Обнови</span></a>'; }).join('') + '</div>' : '';
+    const expBlock = expiring.length ? '<div class="card"><h2 class="eyebrow muted">ПРЕТПЛАТИ ЗА ОБНОВА</h2>' + expiring.map((sb) =>
+      '<a class="list-row" href="#/t/payments"><span class="avatar">' + initials(store.clientName(sb.clientId)) + '</span><span class="grow"><span class="strong">' + esc(store.clientName(sb.clientId)) + '</span><span class="muted small">' + den(sb.price) + ' ден. · ' + subText(sb) + '</span></span>' + subTag(sb) + '</a>').join('') + '<a class="link accent strong small" href="#/t/payments">Сите наплати →</a></div>' : '';
     const content = '<div class="page-head"><h1 class="display-s">' + greeting() + ', ' + esc(t.name.split(' ')[0]) + '</h1>' +
       '<label class="pill"><input type="checkbox" data-change="accepting"' + (t.accepting ? ' checked' : '') + '> Примам нови клиенти</label></div>' +
-      '<div class="grid-4"><div class="card accent-card"><div class="eyebrow">ЗАРАБОТКА / 30 ДЕНА</div><div class="display-xs">' + den(earnings) + ' ден.</div><div class="small strong">' + (unpaid ? den(unpaid) + ' ден. чекаат плаќање' : 'нема неплатени пакети') + '</div></div>' +
+      '<div class="grid-4"><div class="card accent-card"><div class="eyebrow">ЗАРАБОТКА / 30 ДЕНА</div><div class="display-xs">' + den(earnings) + ' ден.</div><div class="small strong">' + (unpaid ? den(unpaid) + ' ден. чекаат плаќање' : 'нема неплатени претплати') + '</div></div>' +
         '<div class="card"><div class="eyebrow muted">АКТИВНИ КЛИЕНТИ</div><div class="display-xs">' + clients.length + '</div><div class="muted small">+ ' + reqs.length + ' нови барања</div></div>' +
         '<div class="card"><div class="eyebrow muted">ТЕРМИНИ</div><div class="display-xs">' + week.length + '</div><div class="muted small">оваа недела</div></div>' +
         '<div class="card"><div class="eyebrow muted">ПРЕГЛЕДИ</div><div class="display-xs">' + (t.isNew ? 0 : 312) + '</div><div class="muted small">на профилот овој месец</div></div></div>' +
@@ -91,12 +94,7 @@ function setOverride(patch) {
   store.set((s) => ({ ...s, trainerOverrides: { ...s.trainerOverrides, [s.trainerId]: { ...(s.trainerOverrides[s.trainerId] || {}), ...patch } } }));
 }
 
-function pkgLine(cid) {
-  const pk = store.packageFor(cid, tid());
-  if (!pk) return 'без пакет';
-  const left = pk.total - pk.used;
-  return 'пакет ' + pk.used + '/' + pk.total + (left <= 2 ? ' · обнови' : '') + (pk.paid ? '' : ' · неплатен');
-}
+function pkgLine(cid) { return subLine(cid, tid()); }
 
 // ---------- Клиенти ----------
 const cState = { tab: 'Активни', q: '' };
@@ -205,8 +203,7 @@ export const calendar = {
       const b = store.get().bookings.find((x) => x.id === el.dataset.val); if (!b) return;
       store.set((st) => ({ ...st, bookings: st.bookings.filter((x) => x.id !== b.id) }));
       closeModal();
-      const pk = store.packageFor(b.clientId, tid());
-      if (pk && pk.used < pk.total) usePackage(pk.id); else toast('Терминот е одржан. Клиентот нема активен пакет.');
+      toast('Терминот е одбележан како одржан.');
     },
     evCancel(el) { store.set((s) => ({ ...s, bookings: s.bookings.filter((b) => b.id !== el.dataset.val) })); closeModal(); toast('Терминот е откажан и клиентот е известен.'); },
     addSlot() {
@@ -344,30 +341,16 @@ function clientProgress(id) {
   return { shared: false, share: {}, data: [] };
 }
 
-// Искористи еден термин од пакетот и извести (потсетник кога истекува)
-function usePackage(id) {
-  const pk = store.get().packages.find((x) => x.id === id);
-  if (!pk || pk.used >= pk.total) return;
-  const used = pk.used + 1; const left = pk.total - used;
-  store.set((st) => ({ ...st, packages: st.packages.map((x) => (x.id === id ? { ...x, used } : x)) }));
-  const trainerName = store.trainer(pk.trainerId).name.split(' ')[0];
-  store.notify(pk.clientId, left > 0 ? trainerName + ': одржан термин. Ти остануваат ' + left + ' од ' + pk.total : 'Го искористи целиот пакет (' + pk.total + ' термини). Договори нов со ' + trainerName, '#/c/home');
-  if (left <= 2) {
-    store.notify(pk.trainerId, 'Пакетот на ' + store.clientName(pk.clientId) + (left ? ' истекува: остануваат ' + left : ' е искористен') + '. Предложи нов.', '#/t/clients/' + pk.clientId);
-    toast(left ? 'Остануваат ' + left + '. Предложи му нов пакет на ' + store.clientName(pk.clientId) + '.' : 'Пакетот е искористен. Предложи нов.');
-  } else toast('Терминот е одбележан: ' + used + '/' + pk.total);
-}
-
 function pkgSection(cid) {
-  const pk = store.packageFor(cid, tid());
+  const sub = store.subFor(cid, tid());
   const plans = store.plansFor(cid, tid());
-  const packageCard = '<section class="card stack-s"><div class="row gap"><h2 class="eyebrow muted grow">ПАКЕТ ТЕРМИНИ</h2><button type="button" class="btn btn-ghost btn-sm" data-act="pkNew" data-val="' + cid + '">+ Нов пакет</button></div>' +
-    (pk ? (function () { const left = pk.total - pk.used; return '<div class="row gap baseline"><span class="display-xs">' + pk.used + ' / ' + pk.total + '</span><span class="muted">' + esc(pk.name) + ' · ' + den(pk.price) + ' ден.</span></div>' +
-      '<div class="bar' + (left <= 2 ? ' warn' : '') + '"><div style="width:' + Math.round((pk.used / pk.total) * 100) + '%"></div></div>' +
-      '<div class="row gap-s wrap"><span class="tag ' + (pk.paid ? 'tag-outline' : 'tag-accent') + '">' + (pk.paid ? 'ПЛАТЕНО ✓' : 'ЧЕКА ПЛАЌАЊЕ') + '</span>' + (left <= 2 ? '<span class="tag tag-accent-outline">' + (left ? 'ОСТАНУВААТ ' + left : 'ИСКОРИСТЕН') + '</span>' : '<span class="muted small">остануваат ' + left + '</span>') + '</div>' +
-      '<div class="row gap-s wrap"><button type="button" class="btn btn-accent btn-sm" data-act="pkUse" data-val="' + pk.id + '"' + (left ? '' : ' disabled') + '>+ Одржан термин</button>' + (pk.paid ? '' : '<button type="button" class="btn btn-ghost btn-sm" data-act="pkPaid" data-val="' + pk.id + '">Означи како платено</button>') + '</div>'; })()
-      : '<p class="muted">Клиентот нема пакет. Направи пакет за да ги следиш термините и плаќањето.</p>') +
-    '<p class="muted small">Плаќањето се договара директно со клиентот; тука само го евидентираш.</p></section>';
+  const pays = store.paymentsOf(tid()).filter((p) => p.clientId === cid).slice(0, 4);
+  const packageCard = '<section class="card stack-s"><div class="row gap"><h2 class="eyebrow muted grow">ПРЕТПЛАТА</h2>' + (sub ? subTag(sub) : '') + '</div>' +
+    (sub ? '<div class="row gap baseline"><span class="display-xs">' + den(sub.price) + ' ден.</span><span class="muted">месечно</span></div><div class="strong">' + subText(sub) + '</div>' +
+      '<div class="row gap-s wrap"><button type="button" class="btn btn-accent btn-sm" data-act="payOpen" data-val="' + sub.id + '">Означи платено</button>' + (store.subState(sub) === 'ok' ? '' : '<button type="button" class="btn btn-ghost btn-sm" data-act="payRemind" data-val="' + sub.id + '">Потсети</button>') + '</div>' +
+      (pays.length ? '<div class="stack-s"><span class="eyebrow muted">ПОСЛЕДНИ ПЛАЌАЊА</span>' + pays.map((p) => '<div class="kv"><span class="muted">' + fmtDate(p.at) + '</span><span class="grow">' + (p.method === 'cash' ? 'Готовина' : 'Банка') + '</span><span class="strong">' + den(p.amount) + ' ден.</span></div>').join('') + '</div>' : '')
+      : '<p class="muted">Клиентот нема претплата. Создај ја за да следиш кога плаќа и кога истекува.</p><button type="button" class="btn btn-accent btn-sm" data-act="subNew" data-val="' + cid + '">+ Создај претплата</button>') +
+    '<p class="muted small">Парите се плаќаат директно; тука само го евидентираш.</p></section>';
   const planCards = plans.length ? '<section class="card stack-s"><h2 class="eyebrow muted">ИСПРАТЕНИ ПЛАНОВИ</h2>' + plans.map((pl) => { const pg = store.planProgress(pl);
     return '<a class="list-row" href="#/t/plan/' + pl.id + '"><span class="grow"><span class="strong">' + esc(pl.name) + '</span><span class="muted small">' + pg.done + ' од ' + pg.total + ' ' + planKindOf(pl).item + ' одработени</span><span class="bar thin"><span style="width:' + Math.round((pg.done / Math.max(pg.total, 1)) * 100) + '%"></span></span></span><span class="muted">›</span></a>'; }).join('') + '</section>' : '';
   return packageCard + planCards;
@@ -414,30 +397,7 @@ export const clientDetail = {
   },
   actions: {
     cMetric(el) { cMetric = el.dataset.val; store.refresh(); },
-    pkUse(el) { usePackage(el.dataset.val); },
-    pkPaid(el) {
-      const id = el.dataset.val; const pk = store.get().packages.find((x) => x.id === id);
-      store.set((st) => ({ ...st, packages: st.packages.map((x) => (x.id === id ? { ...x, paid: true } : x)) }));
-      store.notify(pk.clientId, 'Плаќањето за пакетот „' + pk.name + '“ е евидентирано', '#/c/home');
-      toast('Означено како платено: ' + den(pk.price) + ' ден.');
-    },
-    pkNew(el) {
-      const cid = el.dataset.val; const t = store.trainer(tid());
-      const per = t.price || Math.round((t.onlinePrice || 4000) / 4) || 900;
-      modal('<h2 class="h2">Нов пакет за ' + esc(store.clientName(cid)) + '</h2><form class="stack" data-submit="pkSave"><input type="hidden" name="cid" value="' + cid + '">' +
-        '<label class="field">Број термини<select name="n" data-change="pkCount"><option value="4">4 тренинзи</option><option value="8">8 тренинзи</option><option value="12" selected>12 тренинзи</option><option value="20">20 тренинзи</option></select></label>' +
-        '<label class="field">Цена (ден.)<input id="pk-price" name="price" inputmode="numeric" value="' + (per * 12) + '" data-per="' + per + '"></label>' +
-        '<label class="check"><input type="checkbox" name="paid"> Веќе е платено</label>' +
-        '<p class="muted small">Плаќањето се договара директно со клиентот; тука само го евидентираш.</p><button type="submit" class="btn btn-accent">НАПРАВИ ПАКЕТ</button></form>');
-    },
-    pkCount(el) { const inp = document.getElementById('pk-price'); if (inp) inp.value = Number(inp.dataset.per) * Number(el.value); },
-    pkSave(form) {
-      const n = Number(form.n.value); const price = parseInt(String(form.price.value).replace(/\D/g, ''), 10) || 0; const cid = form.cid.value;
-      const pk = { id: store.uid('pk'), trainerId: tid(), clientId: cid, name: n + ' тренинзи', total: n, used: 0, price, paid: form.paid.checked, at: Date.now() };
-      store.set((st) => ({ ...st, packages: [pk, ...st.packages] }));
-      store.notify(cid, store.trainer(tid()).name.split(' ')[0] + ' ти направи нов пакет: ' + pk.name, '#/c/home');
-      closeModal(); toast('Пакетот е направен.');
-    },
+    ...payActions,
     askProgress(el) { store.addMessage(el.dataset.val, tid(), { from: tid(), text: 'Те молам внеси го напредокот за оваа недела (килажа и мерки) за да го следиме заедно.' }); toast('Пораката е испратена.'); },
     saveComment(form) {
       const cid = form.cid.value; const text = form.text.value.trim(); if (!text) return;

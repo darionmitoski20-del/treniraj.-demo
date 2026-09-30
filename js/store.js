@@ -1,7 +1,7 @@
 // Состојба на демото, зачувана во localStorage на прелистувачот.
 import { TRAINERS, DEMO_REQUESTS, DEMO_CLIENTS, SEED_REVIEWS, SEED_POSTS, PARTNERS, PARTNER_STATS, SEED_RECIPES, TEMPLATES } from './data.js';
 
-const KEY = 'trenirai-demo-v5';
+const KEY = 'trenirai-demo-v6';
 
 function initialState() {
   return {
@@ -55,12 +55,20 @@ function initialState() {
     challenges: { ch1: { joined: true, done: 11, today: false } },
     plans: { selectedTpl: 'tpl1', selectedDay: 0, custom: {} },
     customTrainers: [],         // тренери што се регистрирале во демото
-    // пакети термини: колку клиентот купил, колку искористил, дали е платено
-    packages: [
-      { id: 'pk1', trainerId: 't1', clientId: 'c1', name: '12 тренинзи', total: 12, used: 8, price: 10800, paid: true, at: ts(-20) },
-      { id: 'pk2', trainerId: 't1', clientId: 'c2', name: '8 тренинзи', total: 8, used: 7, price: 8000, paid: true, at: ts(-12) },
-      { id: 'pk3', trainerId: 't1', clientId: 'c3', name: '12 тренинзи', total: 12, used: 4, price: 10800, paid: false, at: ts(-6) },
-      { id: 'pk4', trainerId: 't1', clientId: 'c4', name: '12 тренинзи', total: 12, used: 5, price: 7200, paid: true, at: ts(-3) },
+    // месечни претплати: кога истекува и колку чини (expiresAt = null значи чека прва уплата)
+    subs: [
+      { id: 's1', trainerId: 't1', clientId: 'c1', price: 3000, expiresAt: ts(3) },
+      { id: 's2', trainerId: 't1', clientId: 'c2', price: 3000, expiresAt: ts(2) },
+      { id: 's3', trainerId: 't1', clientId: 'c3', price: 2500, expiresAt: ts(-5) },
+      { id: 's4', trainerId: 't1', clientId: 'c4', price: 3500, expiresAt: ts(24) },
+    ],
+    // евидентирани плаќања (парите се плаќаат надвор од апликацијата)
+    payments: [
+      { id: 'py1', trainerId: 't1', clientId: 'c1', amount: 3000, method: 'bank', at: ts(-18) },
+      { id: 'py2', trainerId: 't1', clientId: 'c1', amount: 3000, method: 'bank', at: ts(-48) },
+      { id: 'py3', trainerId: 't1', clientId: 'c2', amount: 3000, method: 'cash', at: ts(-28) },
+      { id: 'py4', trainerId: 't1', clientId: 'c3', amount: 2500, method: 'bank', at: ts(-35) },
+      { id: 'py5', trainerId: 't1', clientId: 'c4', amount: 3500, method: 'bank', at: ts(-6) },
     ],
     // испратени планови со содржина; done = штиклирани вежби („ден:вежба“)
     sentPlans: [
@@ -108,7 +116,7 @@ export function set(patch) {
 
 export function subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); }
 
-export function reset() { state = initialState(); save(); listeners.forEach((fn) => fn(state)); }
+export function reset() { state = initialState(); runReminders(); save(); listeners.forEach((fn) => fn(state)); }
 
 // Повторно прикажи ја страната (за локални промени на изгледот)
 export function refresh() { listeners.forEach((fn) => fn(state)); }
@@ -182,19 +190,65 @@ export function createTrainer(name) {
   return id;
 }
 
-// ---- Пакети термини ----
-export function packagesOf(trainerId) { return (state.packages || []).filter((p) => p.trainerId === trainerId); }
-export function packageFor(clientId, trainerId) {
-  const list = (state.packages || []).filter((p) => p.clientId === clientId && p.trainerId === trainerId).sort((a, b) => b.at - a.at);
-  return list.find((p) => p.used < p.total) || list[0] || null;
+// ---- Претплати и плаќања ----
+const DAY = 86400000;
+const DEMO_PAYINFO = { bank: { on: true, holder: 'Марија Стојанова', bank: 'Стопанска банка', account: '200-0000000000-00', iban: 'MK07 2000 0000 0000 000', purpose: 'Претплата — име и презиме' }, cash: { on: true, note: 'Готовина на првиот тренинг во месецот.' } };
+export function payInfo(trainerId) {
+  const t = trainer(trainerId);
+  return (t && t.payInfo) || (trainerId === 't1' ? DEMO_PAYINFO : { bank: { on: false, holder: '', bank: '', account: '', iban: '', purpose: 'Претплата — име и презиме' }, cash: { on: false, note: '' } });
 }
+export function subsOf(trainerId) { return (state.subs || []).filter((x) => x.trainerId === trainerId); }
+export function subsOfClient(clientId) { return (state.subs || []).filter((x) => x.clientId === clientId); }
+export function subFor(clientId, trainerId) { return (state.subs || []).find((x) => x.clientId === clientId && x.trainerId === trainerId) || null; }
+export function daysLeft(sub) { return sub.expiresAt == null ? null : Math.ceil((sub.expiresAt - Date.now()) / DAY); }
+// 'new' чека прва уплата, 'overdue' истечена, 'soon' истекува за 7 дена или помалку, 'ok' во ред
+export function subState(sub) {
+  const d = daysLeft(sub);
+  return d === null ? 'new' : d < 0 ? 'overdue' : d <= 7 ? 'soon' : 'ok';
+}
+export function paymentsOf(trainerId) { return (state.payments || []).filter((p) => p.trainerId === trainerId).sort((a, b) => b.at - a.at); }
 export function monthEarnings(trainerId) {
-  const from = Date.now() - 30 * 864e5;
-  return packagesOf(trainerId).filter((p) => p.paid && p.at >= from).reduce((a, p) => a + p.price, 0);
+  const from = Date.now() - 30 * DAY;
+  return paymentsOf(trainerId).filter((p) => p.at >= from).reduce((a, p) => a + p.amount, 0);
 }
-export function unpaidTotal(trainerId) { return packagesOf(trainerId).filter((p) => !p.paid).reduce((a, p) => a + p.price, 0); }
-// Пакети на кои им остануваат 2 или помалку термини (тие треба да се обноват)
-export function expiringPackages(trainerId) { return packagesOf(trainerId).filter((p) => p.total - p.used <= 2); }
+export function unpaidSubs(trainerId) { return subsOf(trainerId).filter((x) => ['new', 'overdue'].includes(subState(x))); }
+export function unpaidTotal(trainerId) { return unpaidSubs(trainerId).reduce((a, x) => a + x.price, 0); }
+// претплати за обнова: задоцнети, нови и оние што истекуваат за 7 дена (најитните први)
+export function dueSubs(trainerId) {
+  const rank = (x) => (daysLeft(x) === null ? -1000 : daysLeft(x));
+  return subsOf(trainerId).filter((x) => subState(x) !== 'ok').sort((a, b) => rank(a) - rank(b));
+}
+export function addSub(clientId, trainerId, price) {
+  if (subFor(clientId, trainerId)) return;
+  state = { ...state, subs: [...(state.subs || []), { id: uid('s'), trainerId, clientId, price, expiresAt: null }] };
+  save();
+}
+// Тренерот означува платено: претплатата се продолжува 30 дена од денешен ден (или од истекот ако сè уште важи)
+export function recordPayment(subId, method, amount) {
+  const sub = (state.subs || []).find((x) => x.id === subId);
+  if (!sub) return null;
+  const base = sub.expiresAt && sub.expiresAt > Date.now() ? sub.expiresAt : Date.now();
+  const expiresAt = base + 30 * DAY;
+  const pay = { id: uid('py'), trainerId: sub.trainerId, clientId: sub.clientId, amount, method, at: Date.now() };
+  state = { ...state, payments: [pay, ...(state.payments || [])], subs: state.subs.map((x) => (x.id === subId ? { ...x, expiresAt, price: amount || x.price, remindedFor: null } : x)) };
+  save();
+  return expiresAt;
+}
+// Подсетник 3 дена пред истекот (и по истекот), еднаш по период
+export function runReminders() {
+  let changed = false; const add = [];
+  const subs = (state.subs || []).map((x) => {
+    const d = daysLeft(x);
+    if (d === null || d > 3 || x.remindedFor === x.expiresAt) return x;
+    const tr = trainer(x.trainerId); const first = tr ? tr.name.split(' ')[0] : 'тренерот';
+    const when = d < 0 ? 'истече' : d === 0 ? 'истекува денес' : d === 1 ? 'истекува утре' : 'истекува за ' + d + ' дена';
+    add.push({ id: uid('n'), to: x.clientId, text: 'Претплатата кај ' + first + ' ' + when + ' (' + x.price.toLocaleString('de-DE') + ' ден.). Види како да платиш.', href: '#/c/payments', at: Date.now(), read: false });
+    add.push({ id: uid('n'), to: x.trainerId, text: 'Претплатата на ' + clientName(x.clientId) + ' ' + when + '.', href: '#/t/payments', at: Date.now(), read: false });
+    changed = true;
+    return { ...x, remindedFor: x.expiresAt };
+  });
+  if (changed) { state = { ...state, subs, notifications: [...add, ...(state.notifications || [])].slice(0, 60) }; save(); }
+}
 
 // ---- Планови ----
 export function plan(id) { return (state.sentPlans || []).find((p) => p.id === id); }

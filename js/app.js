@@ -10,6 +10,7 @@ import * as partner from './pages/partner.js';
 import * as recipes from './pages/recipes.js';
 import * as planview from './pages/planview.js';
 import * as setup from './pages/setup.js';
+import * as pay from './pages/pay.js';
 
 // Чекори на водичот. Секој чекор се штиклира сам кога ќе се направи дејството.
 const STEPS = {
@@ -18,6 +19,8 @@ const STEPS = {
     ['msg', 'Одговори на порака од клиент', '#/t/messages', 'trainer'],
     ['plan', 'Испрати план за тренинг', '#/t/plans', 'trainer'],
     ['recipe', 'Испрати рецепт на клиент', '#/t/recipes', 'trainer'],
+    ['payinfo', 'Внеси начин на плаќање за клиентите', '#/t/payments', 'trainer'],
+    ['paid', 'Означи дека клиент платил', '#/t/payments', 'trainer'],
     ['cal', 'Додај термин во календарот', '#/t/calendar', 'trainer'],
     ['post', 'Објави совет за клиентите', '#/t/posts', 'trainer'],
     ['profile', 'Смени цена или опис во профилот', '#/t/profile', 'trainer'],
@@ -40,7 +43,7 @@ const routes = [
   ['/quiz', pub.quiz], ['/partners', pub.partners], ['/challenges', pub.challenges],
   ['/c/home', client.home, 'client'], ['/c/messages', client.messages, 'client'], ['/c/messages/:id', client.messages, 'client'],
   ['/c/booking', client.booking, 'client'], ['/c/progress', client.progress, 'client'], ['/c/challenges', client.challenges, 'client'],
-  ['/c/partners', client.partners, 'client'], ['/c/settings', client.settings, 'client'],
+  ['/c/partners', client.partners, 'client'], ['/c/payments', pay.clientPay, 'client'], ['/t/payments', pay.trainerPay, 'trainer'], ['/c/settings', client.settings, 'client'],
   ['/t/home', trainer.home, 'trainer'], ['/t/clients', trainer.clients, 'trainer'], ['/t/clients/:id', trainer.clientDetail, 'trainer'], ['/t/messages', trainer.messages, 'trainer'],
   ['/t/messages/:id', trainer.messages, 'trainer'], ['/t/calendar', trainer.calendar, 'trainer'], ['/t/plans', trainer.plans, 'trainer'],
   ['/t/profile', trainer.profile, 'trainer'], ['/t/posts', social.trainerPosts, 'trainer'], ['/t/notifications', social.trainerNotifications, 'trainer'],
@@ -265,5 +268,6 @@ document.addEventListener('keydown', (ev) => {
 });
 
 window.addEventListener('hashchange', () => { closeModal(); render(true); });
+store.runReminders();
 store.subscribe(() => render(false));
 render(true);
