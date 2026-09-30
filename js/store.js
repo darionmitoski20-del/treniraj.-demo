@@ -74,6 +74,7 @@ function initialState() {
     ],
     // испратени планови со содржина; done = штиклирани вежби („ден:вежба“)
     myTemplates: [],
+    pins: {},
     sentPlans: [
       { id: 'pl1', trainerId: 't1', clientId: 'c1', name: 'План — недела 4', at: ts(-2),
         days: TEMPLATES[0].days.map((d) => d.map((r) => [...r, false])), done: { '0:0': true, '0:1': true, '0:2': true } },
@@ -364,3 +365,11 @@ export function slugify(name) {
 export function trainerSlug(t) { return t.slug || slugify(t.name) || t.id; }
 export function trainerBySlug(slug) { return allTrainers().find((t) => trainerSlug(t) === slug) || null; }
 export function trainerLink(t) { return location.origin + location.pathname + '#/u/' + trainerSlug(t); }
+
+// ---- Закачена порака во разговор ----
+export function pinOf(cid, tid) { return ((state.pins || {})[threadKey(cid, tid)]) || null; }
+export function setPin(cid, tid, text) {
+  const pins = { ...(state.pins || {}) }; const k = threadKey(cid, tid);
+  if (text) pins[k] = { text, at: Date.now() }; else delete pins[k];
+  set((s) => ({ ...s, pins }));
+}

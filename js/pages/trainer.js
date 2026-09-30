@@ -3,7 +3,7 @@ import * as store from '../store.js';
 import { planKindOf, features, kindsOf, KINDS, KIND_IDS, PLAN_KINDS, ALL_TEMPLATES } from '../kinds.js';
 import { DEMO_CLIENTS, DAY_SHORT, DAY_NAMES, SPORTS, SLOT_TIMES, DEMO_PROGRESS } from '../data.js';
 import { esc, initials, appLayout, toast, modal, closeModal, chipRow, lineChart, den, greeting } from '../ui.js';
-import { chatBubbles, composer, send, attachVideo, scrollChat } from './chat.js';
+import { chatBubbles, composer, send, scrollChat, convList, pinBar, setCtx, chatActions } from './chat.js';
 import { shortName } from './public.js';
 import { recipeActions } from './recipes.js';
 import { qrSvg, qrPng } from '../qr.js';
@@ -202,20 +202,22 @@ export const messages = {
     const list = myClients();
     if (!list.length) return appLayout('trainer', 'messages', '<div class="empty">Немаш клиенти уште.</div>');
     const c = list.find((x) => x.id === p.id) || list[0];
-    const threads = list.map((x) => { const th = store.thread(x.id, tid()); const last = th[th.length - 1];
-      const unread = last && last.from !== tid();
-      return '<a class="thread' + (x.id === c.id ? ' on' : '') + '" href="#/t/messages/' + x.id + '"><span class="avatar">' + initials(x.name) + '</span><span class="grow ellipsis"><span class="strong">' + esc(x.name) + '</span><span class="muted small ellipsis">' + esc(last ? last.text : 'Нема пораки') + '</span></span>' + (unread ? '<span class="dot-accent"></span>' : '') + '</a>'; }).join('');
-    const content = '<div class="chat-layout two"><section class="threads"><h1 class="h2 upper">Пораки</h1>' + threads + '</section>' +
-      '<section class="chat"><header class="chat-head"><div class="grow"><div class="strong">' + esc(c.name) + '</div><div class="muted small">' + esc(c.goal) + ' · ' + esc(c.type.toLowerCase()) + '</div></div>' +
+    const hasChat = !!p.id && list.some((x) => x.id === p.id);
+    setCtx({ cid: c.id, tid: tid(), from: tid(), auto: c.id });
+    const bk = store.get().bookings.find((b) => b.clientId === c.id && b.trainerId === tid() && b.status !== 'pending');
+    const items = list.map((x) => { const th = store.thread(x.id, tid()); return { id: x.id, name: x.name, sub: x.goal, last: th[th.length - 1] }; });
+    const content = '<div class="chat-layout two ' + (hasChat ? 'has-chat' : 'no-chat') + '"><section class="threads"><h1 class="h2 upper">Пораки</h1>' + convList(items, c.id, '#/t/messages/', tid()) + '</section>' +
+      '<section class="chat"><header class="chat-head"><a class="btn btn-ghost btn-icon chat-back" href="#/t/messages" aria-label="Назад кон разговори">←</a><span class="avatar">' + initials(c.name) + '</span><div class="grow"><div class="strong">' + esc(c.name) + '</div><div class="muted small">' + esc(c.goal) + ' · ' + esc(c.type.toLowerCase()) + '</div></div>' +
         '<a class="btn btn-accent btn-sm" href="#/t/clients/' + c.id + '">Напредок</a><a class="btn btn-ghost btn-sm" href="#/t/plans?c=' + c.id + '">Прати план</a>' + (myFeatures().recipes ? '<a class="btn btn-ghost btn-sm" href="#/t/recipes?c=' + c.id + '">Прати рецепт</a>' : '') + '<button type="button" class="btn btn-accent btn-sm" data-act="videoCall">Видео повик</button></header>' +
-        '<div class="chat-body">' + chatBubbles(store.thread(c.id, tid()), tid()) + '</div>' + composer('sendMsg', 'attach') + '</section></div>';
+        pinBar({ cid: c.id, tid: tid(), goal: c.goal, next: bk ? DAY_NAMES[bk.day] + ', ' + bk.time : '', editable: true }) +
+        '<div class="chat-body">' + chatBubbles(store.thread(c.id, tid()), tid()) + '</div>' + composer('sendMsg') + '</section></div>';
     return appLayout('trainer', 'messages', content, { full: true });
   },
   mount() { scrollChat(); },
   actions: {
     sendMsg(form, ev, cur) { const cid = activeClient(cur); if (form.text.value.trim()) store.markStep('msg'); send(cid, tid(), tid(), form.text.value, cid); },
-    attach(el, ev, cur) { attachVideo(activeClient(cur), tid(), tid()); },
     videoCall() { toast('Во вистинската апликација тука се отвора видео повик.'); },
+    ...chatActions,
     ...recipeActions,
   },
 };

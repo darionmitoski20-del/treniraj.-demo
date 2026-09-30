@@ -4,7 +4,7 @@ import { planKindOf } from '../kinds.js';
 import * as store from '../store.js';
 import { CHALLENGES, LEADERBOARD_OTHERS, DAY_NAMES, DAY_SHORT, SLOT_TIMES } from '../data.js';
 import { esc, initials, appLayout, toast, modal, closeModal, lineChart, chipRow, stars, den } from '../ui.js';
-import { chatBubbles, composer, send, attachVideo, scrollChat } from './chat.js';
+import { chatBubbles, composer, send, scrollChat, convList, pinBar, setCtx, chatActions } from './chat.js';
 import { partnersContent, partnerActions, shortName } from './public.js';
 import { reviewActions } from './social.js';
 import { recipeActions } from './recipes.js';
@@ -90,13 +90,14 @@ export const messages = {
     const t = store.trainer(p.id) && store.isLinked(c.id, p.id) ? store.trainer(p.id) : trainers[0];
     const s = store.get();
     const next = s.bookings.find((b) => b.clientId === c.id && b.trainerId === t.id);
-    const list = trainers.map((x) => { const th = store.thread(c.id, x.id); const last = th[th.length - 1];
-      return '<a class="thread' + (x.id === t.id ? ' on' : '') + '" href="#/c/messages/' + x.id + '"><span class="avatar' + (x.id === t.id ? ' accent-bg' : '') + '">' + initials(x.name) + '</span><span class="grow ellipsis"><span class="strong">' + esc(x.name) + '</span><span class="muted small ellipsis">' + esc(last ? last.text : x.sport) + '</span></span></a>'; }).join('');
+    const hasChat = !!p.id && store.isLinked(c.id, p.id);
+    setCtx({ cid: c.id, tid: t.id, from: c.id, auto: t.id });
+    const list = convList(trainers.map((x) => { const th = store.thread(c.id, x.id); return { id: x.id, name: x.name, sub: x.sport, last: th[th.length - 1] }; }), t.id, '#/c/messages/', c.id);
     const pr = s.progress;
-    const content = '<div class="chat-layout"><section class="threads"><h1 class="h2 upper">Пораки</h1>' + list + '</section>' +
-      '<section class="chat"><header class="chat-head"><div class="grow"><div class="strong">' + esc(t.name) + '</div><div class="accent small strong">' + (next ? 'Термин: ' + DAY_NAMES[next.day] + ', ' + next.time : 'Нема закажан термин') + '</div></div>' +
+    const content = '<div class="chat-layout ' + (hasChat ? 'has-chat' : 'no-chat') + '"><section class="threads"><h1 class="h2 upper">Пораки</h1>' + list + '</section>' +
+      '<section class="chat"><header class="chat-head"><a class="btn btn-ghost btn-icon chat-back" href="#/c/messages" aria-label="Назад кон разговори">←</a><span class="avatar">' + initials(t.name) + '</span><div class="grow"><div class="strong">' + esc(t.name) + '</div><div class="accent small strong">' + (next ? 'Термин: ' + DAY_NAMES[next.day] + ', ' + next.time : 'Нема закажан термин') + '</div></div>' +
         '<a class="btn btn-ghost btn-sm" href="#/c/booking?t=' + t.id + '">Закажи</a><button type="button" class="btn btn-ghost btn-sm hide-m" data-act="reviewOpen" data-val="' + t.id + '">★ Оцени</button><button type="button" class="btn btn-accent btn-sm" data-act="videoCall">Видео повик</button></header>' +
-        '<div class="chat-body">' + chatBubbles(store.thread(c.id, t.id), c.id) + '</div>' + composer('sendMsg', 'attach') + '</section>' +
+        pinBar({ cid: c.id, tid: t.id, goal: c.goal, next: next && next.status !== 'pending' ? DAY_NAMES[next.day] + ', ' + next.time : '', editable: false }) + '<div class="chat-body">' + chatBubbles(store.thread(c.id, t.id), c.id) + '</div>' + composer('sendMsg') + '</section>' +
       '<aside class="chat-side"><h2 class="h3 upper">Мој напредок</h2><div class="card"><div class="eyebrow muted">ТЕЖИНА</div><div class="display-xs">' + pr[pr.length - 1].weight.toFixed(1) + ' кг</div>' + lineChart(pr.map((x) => x.weight), { w: 280, h: 90 }) + '</div>' +
         '<div class="card"><div class="strong small">Коментар од тренерот</div><p class="muted small">' + esc(s.trainerComment) + '</p></div><a class="btn btn-accent" href="#/c/progress">+ ВНЕСИ НАПРЕДОК</a></aside></div>';
     return appLayout('client', 'messages', content, { full: true });
@@ -107,8 +108,8 @@ export const messages = {
       const c = me(); const tid = activeTid(cur);
       send(c.id, tid, c.id, form.text.value, tid);
     },
-    attach(el, ev, cur) { const c = me(); attachVideo(c.id, activeTid(cur), c.id); },
     videoCall() { toast('Во вистинската апликација тука се отвора видео повик.'); },
+    ...chatActions,
     ...reviewActions,
     ...recipeActions,
   },
