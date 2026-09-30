@@ -182,7 +182,9 @@ function pickPhoto(el) {
       c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url);
       const data = c.toDataURL('image/jpeg', 0.82);
       try {
-        store.set((s) => who === 'partner'
+        store.set((s) => who === 'offer'
+          ? { ...s, partnerOverrides: { ...s.partnerOverrides, [s.partnerId]: { ...(s.partnerOverrides[s.partnerId] || {}), offerImage: data } } }
+          : who === 'partner'
           ? { ...s, partnerOverrides: { ...s.partnerOverrides, [s.partnerId]: { ...(s.partnerOverrides[s.partnerId] || {}), photo: data } } }
           : { ...s, trainerOverrides: { ...s.trainerOverrides, [s.trainerId]: { ...(s.trainerOverrides[s.trainerId] || {}), photo: data } } });
         toast('Сликата е додадена.');
@@ -268,5 +270,6 @@ document.addEventListener('keydown', (ev) => {
 
 window.addEventListener('hashchange', () => { closeModal(); render(true); });
 store.runReminders();
+store.runOfferExpiry();
 store.subscribe(() => render(false));
 render(true);

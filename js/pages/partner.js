@@ -4,6 +4,7 @@ import { PARTNER_CATEGORIES, CITIES } from '../data.js';
 import { esc, initials, appLayout, toast } from '../ui.js';
 
 const pid = () => store.get().partnerId;
+const fmtUntil = (iso) => (iso ? iso.split('-').reverse().join('.') : 'без рок');
 
 function completeness(p) {
   const items = [
@@ -23,7 +24,7 @@ export const home = {
     const content = '<div class="page-head"><div><div class="muted small strong">ПАРТНЕР</div><h1 class="display-s">' + esc(p.name) + '</h1></div></div>' +
       '<div class="grid-3 stats-row"><div class="card accent-card"><div class="eyebrow">ПРЕГЛЕДИ НА ПРОФИЛОТ</div><div class="display-xs">' + st.views.toLocaleString('mk-MK') + '</div><div class="small strong">овој месец</div></div>' +
         '<div class="card"><div class="eyebrow muted">КЛИКОВИ НА КОНТАКТ</div><div class="display-xs">' + st.clicks + '</div><div class="muted small">веб, Instagram, телефон</div></div>' +
-        '<div class="card"><div class="eyebrow muted">ПРЕЗЕМЕНИ КУПОНИ</div><div class="display-xs">' + (p.offer ? st.couponViews : '—') + '</div><div class="muted small">' + (p.offer ? esc(p.offer) : 'немаш активен купон') + '</div></div></div>' +
+        '<div class="card"><div class="eyebrow muted">ОТВОРЕНИ КОДОВИ</div><div class="display-xs">' + (p.offer ? st.couponViews : '—') + '</div><div class="muted small">' + (p.offer ? esc(p.offer) + ' · важи до ' + fmtUntil(p.offerUntil) : p.expiredOffer ? 'понудата истече' : 'немаш активна понуда') + '</div></div></div>' +
       '<div class="row gap stack-m"><section class="card grow"><div class="row gap"><h2 class="eyebrow muted grow">ПРОФИЛОТ Е ' + c.pct + '% ПОПОЛНЕТ</h2><a class="btn btn-accent btn-sm" href="#/p/profile">Уреди</a></div>' +
         '<div class="bar"><div style="width:' + c.pct + '%"></div></div>' +
         c.items.map(([label, ok, opt]) => '<div class="check-row' + (ok ? ' ok' : '') + '"><span class="gcheck">' + (ok ? '✓' : '') + '</span><span class="grow">' + label + '</span>' + (!ok && !opt ? '<a class="link accent small strong" href="#/p/profile">Додај</a>' : '') + '</div>').join('') + '</section>' +
@@ -58,10 +59,18 @@ export const profile = {
         field('Instagram', 'instagram', p.instagram, 'placeholder="корисничко име, без @"') +
         field('Телефон', 'phone', p.phone, 'type="tel" inputmode="tel" autocomplete="tel" placeholder="07x xxx xxx"') +
         field('Email', 'email', p.email, 'type="email" inputmode="email" autocomplete="email"') + '</section>' +
-      '<section class="card stack-s"><h2 class="eyebrow muted">КУПОН ЗА КОРИСНИЦИТЕ</h2>' +
-        '<label class="toggle-row"><span class="grow">Нудам попуст за корисниците на Тренирај</span><input type="checkbox" name="hasOffer" data-change="toggleOffer"' + (p.offer ? ' checked' : '') + '></label>' +
-        '<div id="offer-fields" class="stack-s"' + (p.offer ? '' : ' hidden') + '>' + field('Понуда', 'offer', p.offer, 'placeholder="−10% на прв месец"') + field('Код', 'code', p.code, 'placeholder="TRENIRAJ10" autocapitalize="characters"') + '</div>' +
-        '<p class="muted small">Купонот е незадолжителен. Профилот е видлив и без него.</p></section>' +
+      '<section class="card stack-s"><h2 class="eyebrow muted">ПОНУДА ЗА НОВИ КЛИЕНТИ</h2>' +
+        (p.expiredOffer ? '<div class="card note">Претходната понуда („' + esc(p.expiredOffer) + '“) истече и е исклучена. Постави нова.</div>' : '') +
+        '<label class="toggle-row"><span class="grow">Имам активна понуда</span><input type="checkbox" name="hasOffer" data-change="toggleOffer"' + (p.offer ? ' checked' : '') + '></label>' +
+        '<div id="offer-fields" class="stack-s"' + (p.offer ? '' : ' hidden') + '>' +
+          '<label class="field">Тип на понуда<select name="offerType" data-change="offerType"><option value="discount"' + (p.offerType !== 'trial' ? ' selected' : '') + '>Попуст во % (купон)</option><option value="trial"' + (p.offerType === 'trial' ? ' selected' : '') + '>Пробен ден / тренинг</option></select></label>' +
+          '<div id="offer-amt"' + (p.offerType === 'trial' ? ' hidden' : '') + '>' + field('Попуст (%)', 'offerAmount', p.offerAmount, 'type="number" inputmode="numeric" min="1" max="90" placeholder="20"') + '</div>' +
+          field('На што важи (по избор)', 'offerNote', p.offerNote, 'placeholder="на првиот месец членарина"') +
+          field('Код што го кажува клиентот на каса', 'code', p.code, 'placeholder="TRENIRAJ20" autocapitalize="characters"') +
+          field('Важи до', 'offerUntil', p.offerUntil, 'type="date" min="' + store.isoIn(0) + '"') +
+          '<button type="button" class="upload" data-act="pickPhoto" data-val="offer">' + (p.offerImage ? '✓ Сликата е додадена · промени' : '+ Слика за понудата') + '</button>' +
+        '</div>' +
+        '<p class="muted small">Една активна понуда одеднаш. Важи еднаш по клиент. Кога ќе истече, се исклучува сама и добиваш известување.</p></section>' +
       '<div class="save-bar"><button type="submit" class="btn btn-accent btn-lg">ЗАЧУВАЈ ПРОМЕНИ</button></div></form>';
     return appLayout('partner', 'edit', content);
   },
@@ -82,13 +91,17 @@ export const profile = {
   },
   actions: {
     upload() { toast('Во вистинската апликација тука прикачуваш слики.'); },
+    offerType(el) { const f = document.getElementById('offer-amt'); if (f) f.hidden = el.value === 'trial'; },
     toggleOffer(el) { const f = document.getElementById('offer-fields'); if (f) f.hidden = !el.checked; },
     save(form) {
       const v = (n) => (form[n] ? form[n].value.trim() : '');
-      const hasOffer = form.hasOffer.checked && v('offer');
+      const on = form.hasOffer.checked;
+      if (on && !v('offerUntil')) { toast('Внеси рок до кога важи понудата.'); return; }
+      if (on && form.offerType.value === 'discount' && !(Number(v('offerAmount')) > 0)) { toast('Внеси колкав е попустот (%).'); return; }
       const patch = { name: v('name') || store.partner(pid()).name, category: v('category'), desc: v('desc'), city: v('city'), address: v('address'), hours: v('hours'),
         website: v('website').replace(/^https?:\/\//, ''), instagram: v('instagram').replace(/^@/, ''), phone: v('phone'), email: v('email'),
-        offer: hasOffer ? v('offer') : '', code: hasOffer ? (v('code') || 'TRENIRAJ').toUpperCase() : '' };
+        offerType: on ? form.offerType.value : '', offerAmount: on ? v('offerAmount') : '', offerNote: on ? v('offerNote') : '', offerUntil: on ? v('offerUntil') : '',
+        offerNotified: null, code: on ? (v('code') || 'TRENIRAJ').toUpperCase() : '' };
       if (draftPin) { patch.lat = draftPin.lat; patch.lng = draftPin.lng; }
       store.set((s) => ({ ...s, partnerOverrides: { ...s.partnerOverrides, [s.partnerId]: { ...(s.partnerOverrides[s.partnerId] || {}), ...patch } } }));
       toast('Зачувано! Клиентите веќе ги гледаат промените.');

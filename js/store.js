@@ -14,7 +14,8 @@ function initialState() {
     trainerId: 't1',            // демо тренерот
     trainerOverrides: {},       // измени од „Мој профил“
     partnerId: 'p1',            // демо партнерот (бизнис)
-    partnerOverrides: {},
+    partnerOverrides: { p1: { offerType: 'discount', offerAmount: '20', offerNote: 'на првиот месец членарина', offerUntil: isoIn(20) } },
+    couponsTaken: {},
     partnerStats: JSON.parse(JSON.stringify(PARTNER_STATS)),
     requests: DEMO_REQUESTS.map((r) => ({ ...r })),
     // активни соработки клиент–тренер
@@ -115,7 +116,7 @@ export function set(patch) {
 
 export function subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); }
 
-export function reset() { state = initialState(); runReminders(); save(); listeners.forEach((fn) => fn(state)); }
+export function reset() { state = initialState(); runReminders(); runOfferExpiry(); save(); listeners.forEach((fn) => fn(state)); }
 
 // Повторно прикажи ја страната (за локални промени на изгледот)
 export function refresh() { listeners.forEach((fn) => fn(state)); }
@@ -145,7 +146,39 @@ export function reviewsFor(trainerId) {
 export function meId() { return state.role === 'trainer' ? state.trainerId : state.role === 'client' ? state.client.id : state.role === 'partner' ? state.partnerId : null; }
 
 // ---- Партнери ----
-export function partner(id) { const b = PARTNERS.find((p) => p.id === id); return b ? { ...b, ...(state.partnerOverrides[id] || {}) } : null; }
+export function isoIn(days) { const d = new Date(Date.now() + days * 864e5); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+export function offerExpired(p) { return !!(p.offerUntil && new Date(p.offerUntil + 'T23:59:59').getTime() < Date.now()); }
+export function offerText(o) {
+  if (!o.offerType) return '';
+  const note = o.offerNote ? ' ' + o.offerNote : '';
+  return o.offerType === 'trial' ? 'Бесплатен пробен ' + (o.offerNote || 'тренинг') : '−' + (o.offerAmount || '10') + '%' + note;
+}
+export function partner(id) {
+  const b = PARTNERS.find((p) => p.id === id); if (!b) return null;
+  const p = { ...b, ...(state.partnerOverrides[id] || {}) };
+  if (p.offerType) { p.offer = offerText(p); } 
+  if (p.offerUntil && offerExpired(p)) { p.expiredOffer = p.offer; p.offer = ''; }
+  return p;
+}
+export function couponTaken(pid, cid) { return ((state.couponsTaken || {})[pid] || []).includes(cid); }
+export function takeCoupon(pid, cid) {
+  if (couponTaken(pid, cid)) return false;
+  const t = state.couponsTaken || {};
+  state = { ...state, couponsTaken: { ...t, [pid]: [...(t[pid] || []), cid] } };
+  trackPartner(pid, 'couponViews'); save(); return true;
+}
+// Истечена понуда: се исклучува сама и партнерот добива известување (еднаш)
+export function runOfferExpiry() {
+  const add = []; const ov = { ...state.partnerOverrides };
+  PARTNERS.forEach((b) => {
+    const p = { ...b, ...(ov[b.id] || {}) };
+    if (p.offerUntil && offerExpired(p) && p.offerNotified !== p.offerUntil) {
+      ov[b.id] = { ...(ov[b.id] || {}), offerNotified: p.offerUntil };
+      add.push({ id: uid('n'), to: b.id, text: 'Твојата понуда („' + (offerText(p) || 'понуда') + '“) истече и е исклучена. Додај нова за да продолжиш да привлекуваш клиенти.', href: '#/p/profile', at: Date.now(), read: false });
+    }
+  });
+  if (add.length) { state = { ...state, partnerOverrides: ov, notifications: [...add, ...(state.notifications || [])].slice(0, 60) }; save(); }
+}
 export function allPartners() { return PARTNERS.map((p) => partner(p.id)); }
 export function trackPartner(id, field) {
   if (!state.partnerStats[id]) return;

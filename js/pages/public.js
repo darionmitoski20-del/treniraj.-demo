@@ -355,7 +355,7 @@ function partnerCard(p) {
   return '<article class="card pcard"><a class="row gap-s plink" href="#/partner/' + p.id + '"><span class="avatar">' + initials(p.name) + '</span><div class="grow"><div class="strong">' + esc(p.name) + '</div><div class="muted small">' + esc(p.category) + ' · ' + esc(p.city) + '</div></div></a>' +
     '<p class="muted small pdesc">' + esc(p.desc || '') + '</p>' +
     '<div class="row gap-s wrap">' + (p.address ? '<span class="chip-s">📍 ' + esc(p.city) + '</span>' : '') + (p.website ? '<span class="chip-s">Веб-сајт</span>' : '') + (p.instagram ? '<span class="chip-s">Instagram</span>' : '') + (p.phone ? '<span class="chip-s">Телефон</span>' : '') + '</div>' +
-    (p.offer ? '<div class="coupon-row"><span class="small strong">' + esc(p.offer) + '</span><button type="button" class="link accent" data-act="coupon" data-val="' + p.id + '">КУПОН →</button></div>'
+    (p.offer ? '<div class="coupon-row"><span class="small strong">' + esc(p.offer) + '</span><button type="button" class="link accent" data-act="coupon" data-val="' + p.id + '">ПОНУДА →</button></div>'
       : '<a class="coupon-row plain" href="#/partner/' + p.id + '"><span class="small strong">Види профил</span><span class="accent strong">→</span></a>') +
     (s.role === 'partner' && p.id === s.partnerId ? '<span class="tag tag-accent">ТВОЈ ПРОФИЛ</span>' : '') + '</article>';
 }
@@ -368,7 +368,7 @@ export function partnersContent() {
   return '<div class="section-head"><h1 class="display-s">Партнери</h1><div class="chips">' + chipRow(cats, partnerState.cat, 'pCat') + '</div></div>' +
     '<div class="partners-layout"><div class="stack">' +
     '<section class="featured"><div class="featured-photo">' + photo('', 'dumbbell', '', partnerPhoto(feat)) + '</div><div class="featured-body"><div class="eyebrow">ИЗДВОЕН ПАРТНЕР</div><a class="h2 upper plink" href="#/partner/' + feat.id + '">' + esc(feat.name) + '</a><div class="strong small">' + esc(feat.category) + ' · ' + esc(feat.city) + (feat.address ? ', ' + esc(feat.address) : '') + '</div></div>' +
-    '<div class="featured-cta">' + (feat.offer ? '<div class="coupon"><div class="small strong">' + esc(feat.offer) + '</div></div><button type="button" class="btn btn-dark" data-act="coupon" data-val="' + feat.id + '">ЗЕМИ КУПОН</button>' : '') + '<a class="btn btn-outline-dark btn-sm" href="#/partner/' + feat.id + '">ПРОФИЛ</a></div></section>' +
+    '<div class="featured-cta">' + (feat.offer ? '<div class="coupon"><div class="small strong">' + esc(feat.offer) + '</div></div><button type="button" class="btn btn-dark" data-act="coupon" data-val="' + feat.id + '">ПОКАЖИ КОД</button>' : '') + '<a class="btn btn-outline-dark btn-sm" href="#/partner/' + feat.id + '">ПРОФИЛ</a></div></section>' +
     (list.length ? '<div class="grid-3">' + list.map(partnerCard).join('') + '</div>' : '<div class="empty">Нема партнери во оваа категорија.</div>') + '</div>' +
     '<aside class="stack"><section class="card light"><h2 class="h3 upper">Имаш бизнис во спортот?</h2><p class="small">Направи профил со локација, контакт и понуди. Клиентите и тренерите на Тренирај ќе те најдат.</p><div class="small strong">Месечна претплата · купоните се незадолжителни</div><a class="btn btn-dark" href="#/signup?role=partner">СТАНИ ПАРТНЕР</a></section>' +
     '<section class="card"><h2 class="eyebrow muted">ПАРТНЕРОТ ДОБИВА</h2>' + ['Профил со опис, фото и локација на мапа', 'Веб-сајт, Instagram и контакт', 'Купони за корисниците (по избор)', 'Статистика: прегледи, кликови, купони'].map((x) => '<div class="check-line"><span class="accent">✓</span>' + x + '</div>').join('') + '</section></aside></div>';
@@ -395,7 +395,7 @@ export const partnerProfile = {
     const s = store.get();
     const content = '<div class="profile">' +
       '<aside class="profile-side"><div class="profile-photo">' + photo('ФОТО / ЛОГО', 'dumbbell', 'photo-tall', partnerPhoto(p)) + (p.featured ? '<span class="tag tag-accent profile-top">ИЗДВОЕН ПАРТНЕР</span>' : '') + '</div>' +
-        (p.offer ? '<section class="card accent-card"><div class="eyebrow">ПОНУДА ЗА КОРИСНИЦИТЕ НА ТРЕНИРАЈ</div><div class="display-xs">' + esc(p.offer) + '</div><button type="button" class="btn btn-dark" data-act="coupon" data-val="' + p.id + '">ЗЕМИ КУПОН</button></section>' : '') +
+        (p.offer ? '<section class="card accent-card stack-s"><div class="eyebrow">ПОНУДИ ЗА КОРИСНИЦИТЕ НА ТРЕНИРАЈ</div>' + (p.offerImage ? '<img class="offer-img" src="' + p.offerImage + '" alt="">' : '') + '<div class="display-xs">' + esc(p.offer) + '</div>' + (p.offerUntil ? '<div class="small strong">Важи до ' + p.offerUntil.split('-').reverse().join('.') + ' · еднаш по клиент</div>' : '') + '<button type="button" class="btn btn-dark" data-act="coupon" data-val="' + p.id + '">ПОКАЖИ КОД</button></section>' : '') +
         (s.role === 'partner' && s.partnerId === p.id ? '<a class="btn btn-ghost" href="#/p/profile">Уреди го профилот</a>' : '') + '</aside>' +
       '<section class="profile-main"><div class="row gap-s wrap"><span class="tag tag-light">' + esc(p.category.toUpperCase()) + '</span><span class="tag tag-outline">ПАРТНЕР</span></div>' +
         '<h1 class="display-s">' + esc(p.name) + '</h1><div class="muted">' + esc(p.city) + (p.address ? ', ' + esc(p.address) : '') + '</div>' +
@@ -424,9 +424,10 @@ export const partnerProfile = {
 export const partnerActions = {
   pCat(el) { partnerState.cat = el.dataset.val; store.refresh(); },
   coupon(el) {
-    const p = store.partner(el.dataset.val);
-    store.trackPartner(p.id, 'couponViews');
-    modal('<div class="eyebrow accent">ТВОЈ КУПОН</div><h2 class="h2">' + esc(p.name) + '</h2><p class="muted">' + esc(p.offer) + '</p><div class="code-box">' + esc(p.code) + '</div><p class="muted small">Покажи го кодот на касата или внеси го при онлајн нарачка.</p><button type="button" class="btn btn-accent" data-act="copyCode" data-val="' + esc(p.code) + '">КОПИРАЈ КОД</button>');
+    const p = store.partner(el.dataset.val); if (!p || !p.offer) return;
+    const cid = (store.get().client && store.get().client.id) || 'guest';
+    const first = store.takeCoupon(p.id, cid);
+    modal('<div class="eyebrow accent">ТВОЈА ПОНУДА</div><h2 class="h2">' + esc(p.name) + '</h2><p class="muted">' + esc(p.offer) + (p.offerUntil ? ' · важи до ' + p.offerUntil.split('-').reverse().join('.') : '') + '</p><div class="code-box">' + esc(p.code) + '</div><p class="muted small">Кажи го кодот на касата. Важи еднаш по клиент' + (first ? '.' : ' — веќе си го отворил овој код.') + '</p><button type="button" class="btn btn-accent" data-act="copyCode" data-val="' + esc(p.code) + '">КОПИРАЈ КОД</button>');
   },
   copyCode(el) { try { navigator.clipboard.writeText(el.dataset.val); } catch (e) { /* */ } toast('Кодот е копиран'); },
   pClick(el) {
