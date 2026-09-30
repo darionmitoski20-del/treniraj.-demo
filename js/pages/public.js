@@ -1,4 +1,5 @@
 // Јавни страни: почетна, мапа, профил на тренер, регистрација, квиз, партнери, предизвици.
+import { DEMO_PHOTOS } from '../photos.js';
 import { kindLabels } from '../kinds.js';
 import * as store from '../store.js';
 import { SPORTS, CITIES, CHALLENGES, LEADERBOARD_OTHERS, PARTNER_CATEGORIES } from '../data.js';
@@ -43,7 +44,7 @@ export const home = {
         '<label>ТИП<select name="type">' + ['Сите', 'Онлајн', 'Во живо'].map((o) => '<option' + (o === search.type ? ' selected' : '') + '>' + o + '</option>').join('') + '</select></label>' +
         '<button type="submit" class="btn btn-accent">' + icon.search + ' БАРАЈ</button></form>' +
       '<a class="quiz-link" href="#/quiz">Не си сигурен? <span class="accent">Направи квиз од 5 прашања →</span></a></div>' +
-      '<div class="hero-visual">' + photo('ФОТО: ТРЕНЕР ВО АКЦИЈА', 'dumbbell', 'photo-hero', 'img/hero.jpg') +
+      '<div class="hero-visual">' + photo('ФОТО: ТРЕНЕР ВО АКЦИЈА', 'dumbbell', 'photo-hero', ['img/hero.jpg', DEMO_PHOTOS.hero]) +
         '<div class="float-card"><span class="avatar">МС</span><span><span class="strong">Марија Стојанова</span><span class="muted-dark small">Фитнес · ★ 4.9</span></span><span class="tag tag-dark">ТРЕНЕР НА МЕСЕЦОТ</span></div>' +
         '<div class="sticker">Прв разговор бесплатно</div></div></section>';
     const ticker = '<div class="ticker" aria-hidden="true">' + SPORTS.map((s) => '<span>' + s.toUpperCase() + '</span><span>✦</span>').join('') + '</div>';

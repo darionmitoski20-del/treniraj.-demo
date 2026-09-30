@@ -1,4 +1,5 @@
 // Помошни функции за HTML и заеднички делови од изгледот.
+import { DEMO_PHOTOS } from './photos.js';
 import { features, kindLabels } from './kinds.js';
 import { get, unreadCount, trainer } from './store.js';
 
@@ -56,11 +57,14 @@ export function typeLabel(type) {
 
 export function photo(label, iconName = 'person', cls = '', src = '') {
   // Ако сликата постои (прикачена или во папката img/) се прикажува преку местото за слика; ако не постои, останува местото.
-  const img = src ? '<img class="photo-img" src="' + esc(src) + '" alt="" loading="lazy" onerror="this.remove()">' : '';
+  const [s1, s2] = Array.isArray(src) ? src : [src, ''];
+  src = s1 || s2; const alt = s1 ? s2 : '';
+  const img = src ? '<img class="photo-img" src="' + esc(src) + '"' + (alt ? ' data-alt="' + esc(alt) + '"' : '') + ' alt="" loading="lazy" onerror="if(this.dataset.alt){this.src=this.dataset.alt;this.removeAttribute(\'data-alt\')}else{this.remove()}">' : '';
   return '<div class="photo ' + cls + '">' + '<span class="photo-icon">' + icon[iconName] + '</span>' + (label && !src ? '<span class="photo-label">' + esc(label) + '</span>' : '') + img + '</div>';
 }
-export const trainerPhoto = (t) => (t && (t.photo || (t.id && t.id !== 'preview' ? 'img/trainers/' + t.id + '.jpg' : ''))) || '';
-export const partnerPhoto = (p) => (p && (p.photo || (p.id ? 'img/partners/' + p.id + '.jpg' : ''))) || '';
+// Редослед: прикачена слика, па слика од папката img/, па пробна слика
+export const trainerPhoto = (t) => (!t ? '' : t.photo ? t.photo : t.id && t.id !== 'preview' ? ['img/trainers/' + t.id + '.jpg', DEMO_PHOTOS[t.id] || ''] : '');
+export const partnerPhoto = (p) => (!p ? '' : p.photo ? p.photo : p.id ? ['img/partners/' + p.id + '.jpg', DEMO_PHOTOS[p.id] || ''] : '');
 
 // Надворешни куки што ги поставува app.js (на пр. бројач на водичот)
 export const hooks = { guideLabel: () => 'Водич' };
