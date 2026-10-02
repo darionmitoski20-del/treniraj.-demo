@@ -104,13 +104,13 @@ export function publicLayout(active, content) {
 
 const CLIENT_NAV = [
   ['#/c/home', 'Мој преглед', 'home'], ['#/', 'Најди тренер', 'find'], ['#/c/messages', 'Пораки', 'messages'],
-  ['#/c/booking', 'Термини', 'booking'], ['#/c/payments', 'Плаќања', 'payments'], ['#/c/progress', 'Напредок', 'progress'], ['#/c/recipes', 'Рецепти', 'recipes'],
+  ['#/c/booking', 'Термини', 'booking'], ['#/c/payments', 'Плаќања', 'payments'], ['#/c/progress', 'Напредок', 'progress'], ['#/c/recipes', 'План за исхрана', 'recipes'],
   ['#/c/challenges', 'Предизвици', 'challenges'], ['#/c/partners', 'Партнери', 'partners'],
   ['#/c/notifications', 'Известувања', 'notif'], ['#/c/settings', 'Мој профил', 'settings'],
 ];
 const TRAINER_NAV = [
   ['#/t/home', 'Преглед', 'home'], ['#/t/clients', 'Клиенти', 'clients'], ['#/t/payments', 'Наплата', 'payments'], ['#/t/messages', 'Пораки', 'messages'],
-  ['#/t/calendar', 'Календар', 'calendar'], ['#/t/plans', 'Планови и шаблони', 'plans'], ['#/t/recipes', 'Рецепти', 'recipes'],
+  ['#/t/calendar', 'Календар', 'calendar'], ['#/t/plans', 'Планови и шаблони', 'plans'], ['#/t/recipes', 'План за исхрана', 'recipes'],
   ['#/t/notifications', 'Известувања', 'notif'], ['#/t/profile', 'Мој профил', 'profile'],
 ];
 const PARTNER_NAV = [

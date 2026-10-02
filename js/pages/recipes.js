@@ -66,7 +66,7 @@ export function recipeCard(r, extra = '') {
 }
 
 // ---------- Тренер: градител на рецепти ----------
-const rs = { sel: 'rc1', draft: null, tab: 'Рецепти' };
+const rs = { sel: 'rc1', draft: null, tab: 'План за исхрана' };
 const mpd = { clientId: '', name: 'Неделен план за исхрана', target: 2000, day: 0, days: Array.from({ length: 7 }, () => ({})) };
 function draft() {
   const r = store.recipe(rs.sel) || store.get().recipes.find((x) => x.trainerId === store.get().trainerId);
@@ -79,7 +79,7 @@ function myClients() {
 }
 
 export const trainerRecipes = {
-  title: 'Рецепти',
+  title: 'План за исхрана',
   render(p, q) {
     const s = store.get();
     const mine = s.recipes.filter((r) => r.trainerId === s.trainerId);
@@ -98,8 +98,8 @@ export const trainerRecipes = {
       '<div class="row gap wrap"><button type="button" class="btn btn-ghost grow" data-act="rPreview">Преглед</button><button type="button" class="btn btn-ghost grow" data-act="rSave">Зачувај</button></div>' +
       '<form class="card light row gap wrap send-card" data-submit="rSend"><div class="grow"><div class="strong">Испрати го рецептот на клиент</div><div class="small">Клиентот го добива во четот и во „Рецепти“.</div></div>' +
         '<label class="sr" for="r-client">Клиент</label><select id="r-client" name="c">' + myClients().map((c) => '<option value="' + c.id + '"' + (q.c === c.id ? ' selected' : '') + '>' + esc(c.name) + '</option>').join('') + '</select><button class="btn btn-dark" type="submit">ИСПРАТИ</button></form></section>';
-    if (rs.tab !== 'Рецепти') return appLayout('trainer', 'recipes', '<div class="chips">' + chipRow(['Рецепти', 'План за исхрана'], rs.tab, 'rTab') + '</div>' + mealPlanner());
-    const content = '<div class="chips">' + chipRow(['Рецепти', 'План за исхрана'], rs.tab, 'rTab') + '</div><div class="plans"><section class="tpl-list"><h1 class="h2 upper">Рецепти</h1>' +
+    if (rs.tab !== 'Рецепти') return appLayout('trainer', 'recipes', '<div class="chips">' + chipRow(['План за исхрана', 'Рецепти'], rs.tab, 'rTab') + '</div>' + mealPlanner());
+    const content = '<div class="chips">' + chipRow(['План за исхрана', 'Рецепти'], rs.tab, 'rTab') + '</div><div class="plans"><section class="tpl-list"><h1 class="h2 upper">Рецепти</h1>' +
       '<button type="button" class="tpl new" data-act="rNew"><span class="strong">+ Нов рецепт</span></button>' +
       mine.map((r) => '<button type="button" class="tpl' + (d && r.id === d.id ? ' on' : '') + '" data-act="rSel" data-val="' + r.id + '"><span class="strong">' + esc(r.name) + '</span><span class="small">' + esc(r.cat) + ' · ' + r.kcal + ' kcal</span></button>').join('') + '</section>' + editor + '</div>';
     return appLayout('trainer', 'recipes', content);
@@ -226,9 +226,9 @@ function menu() {
 }
 
 export const clientRecipes = {
-  title: 'Рецепти',
+  title: 'План за исхрана',
   render() {
-    const content = '<div class="page-head"><div><h1 class="display-s">Рецепти</h1><p class="muted">Планот за исхрана и рецептите од твојот тренер.</p></div></div>' +
+    const content = '<div class="page-head"><div><h1 class="display-s">План за исхрана</h1><p class="muted">Планот за исхрана и рецептите од твојот тренер.</p></div></div>' +
       '<label class="sr" for="rc-q">Барај рецепт или состојка</label><input id="rc-q" class="search" type="search" placeholder="Барај рецепт или состојка…" value="' + esc(cr.q) + '" data-input="rcSearch">' +
       menu() + '<div class="chips">' + chipRow(FILTERS, cr.cat, 'crCat') + '</div><div id="rc-list">' + list() + '</div>';
     return appLayout('client', 'recipes', content);
