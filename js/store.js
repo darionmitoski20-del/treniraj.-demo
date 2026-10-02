@@ -100,7 +100,12 @@ const listeners = new Set();
 function load() {
   try {
     const raw = localStorage.getItem(KEY);
-    if (raw) return { ...initialState(), ...JSON.parse(raw) };
+    if (raw) {
+      const st = { ...initialState(), ...JSON.parse(raw) };
+      const have = new Set((st.recipes || []).map((r) => r.id));
+      st.recipes = [...(st.recipes || []), ...SEED_RECIPES.filter((r) => !have.has(r.id)).map((r) => JSON.parse(JSON.stringify(r)))];
+      return st;
+    }
   } catch (e) { /* приватен режим: продолжи без зачувување */ }
   return initialState();
 }

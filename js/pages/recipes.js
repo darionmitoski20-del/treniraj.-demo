@@ -22,8 +22,11 @@ export function recipeView(r) {
 }
 
 // ---- Клиент: омилени, белешки, порции ----
-const cr = { cat: 'Сите', q: '', serv: 0, pdate: '', pmeal: '' };
-const plan = () => store.get().mealPlan || [];
+const cr = { cat: 'Сите', q: '', serv: 0, day: (new Date().getDay() + 6) % 7 };
+const DAYS = ['Пон', 'Вто', 'Сре', 'Чет', 'Пет', 'Саб', 'Нед'];
+const DAYS_L = ['Понеделник', 'Вторник', 'Среда', 'Четврток', 'Петок', 'Сабота', 'Недела'];
+const MEALS = ['Појадок', 'Ручек', 'Вечера', 'Ужина'];
+const dayKcal = (day) => MEALS.reduce((a, m) => a + ((store.recipe(day[m]) || {}).kcal || 0), 0);
 const favs = () => store.get().recipeFav || [];
 const noteOf = (id) => (store.get().recipeNotes || {})[id] || '';
 
@@ -44,9 +47,6 @@ function clientRecipeView(r) {
     '<div class="serv-row"><span class="strong">Порции</span><div class="row gap"><button type="button" class="btn btn-ghost serv-b" data-act="rcServ" data-val="-1" aria-label="Помалку порции">−</button><span class="strong big" aria-live="polite">' + serv + '</span><button type="button" class="btn btn-ghost serv-b" data-act="rcServ" data-val="1" aria-label="Повеќе порции">+</button></div></div>' +
     '<h3 class="eyebrow muted">СОСТОЈКИ</h3><ul class="ingr">' + r.ingredients.map(([a, n]) => '<li><span class="strong">' + esc(scale(a, k)) + '</span> ' + esc(n) + '</li>').join('') + '</ul>' +
     '<h3 class="eyebrow muted">ПОДГОТОВКА</h3><ol class="steps">' + r.steps.map((st) => '<li>' + esc(st) + '</li>').join('') + '</ol>' +
-    '<h3 class="eyebrow muted">КОГА ЌЕ ГО ЈАМ</h3><div class="chips">' + Array.from({ length: 14 }, (_, i) => store.isoIn(i)).map((d, i) => '<button type="button" class="chip' + (d === cr.pdate ? ' on' : '') + '" data-act="rcDate" data-val="' + d + '">' + (i === 0 ? 'Денес' : i === 1 ? 'Утре' : store.dateLabel(d)) + '</button>').join('') + '</div>' +
-    '<div class="chips">' + chipRow(CATS, cr.pmeal, 'rcMeal') + '</div>' +
-    '<button type="button" class="btn btn-ghost" data-act="rcPlan" data-val="' + r.id + '">+ ДОДАЈ ВО МОЕТО МЕНИ</button>' +
     '<label class="field">Моја белешка<textarea rows="2" maxlength="300" placeholder="На пр. стави помалку сол, го сакаат децата…" data-input="rcNote" data-val="' + r.id + '">' + esc(noteOf(r.id)) + '</textarea></label>' +
     '<button type="button" class="btn btn-accent" data-act="closeModal">ЗАТВОРИ</button>';
 }
@@ -55,7 +55,7 @@ export const recipeActions = {
   openRecipe(el) {
     const r = store.recipe(el.dataset.val);
     if (!r) { toast('Рецептот повеќе не постои.'); return; }
-    if (store.get().role === 'client') { cr.serv = r.servings; cr.open = r.id; cr.pdate = store.isoIn(0); cr.pmeal = r.cat; modal(clientRecipeView(r)); }
+    if (store.get().role === 'client') { cr.serv = r.servings; cr.open = r.id; modal(clientRecipeView(r)); }
     else modal(recipeView(r));
   },
 };
@@ -66,7 +66,8 @@ export function recipeCard(r, extra = '') {
 }
 
 // ---------- Тренер: градител на рецепти ----------
-const rs = { sel: 'rc1', draft: null };
+const rs = { sel: 'rc1', draft: null, tab: 'Рецепти' };
+const mpd = { clientId: '', name: 'Неделен план за исхрана', target: 2000, day: 0, days: Array.from({ length: 7 }, () => ({})) };
 function draft() {
   const r = store.recipe(rs.sel) || store.get().recipes.find((x) => x.trainerId === store.get().trainerId);
   if (!rs.draft || rs.draft.id !== (r && r.id)) rs.draft = r ? JSON.parse(JSON.stringify(r)) : null;
@@ -97,13 +98,32 @@ export const trainerRecipes = {
       '<div class="row gap wrap"><button type="button" class="btn btn-ghost grow" data-act="rPreview">Преглед</button><button type="button" class="btn btn-ghost grow" data-act="rSave">Зачувај</button></div>' +
       '<form class="card light row gap wrap send-card" data-submit="rSend"><div class="grow"><div class="strong">Испрати го рецептот на клиент</div><div class="small">Клиентот го добива во четот и во „Рецепти“.</div></div>' +
         '<label class="sr" for="r-client">Клиент</label><select id="r-client" name="c">' + myClients().map((c) => '<option value="' + c.id + '"' + (q.c === c.id ? ' selected' : '') + '>' + esc(c.name) + '</option>').join('') + '</select><button class="btn btn-dark" type="submit">ИСПРАТИ</button></form></section>';
-    const content = '<div class="plans"><section class="tpl-list"><h1 class="h2 upper">Рецепти</h1>' +
+    if (rs.tab !== 'Рецепти') return appLayout('trainer', 'recipes', '<div class="chips">' + chipRow(['Рецепти', 'План за исхрана'], rs.tab, 'rTab') + '</div>' + mealPlanner());
+    const content = '<div class="chips">' + chipRow(['Рецепти', 'План за исхрана'], rs.tab, 'rTab') + '</div><div class="plans"><section class="tpl-list"><h1 class="h2 upper">Рецепти</h1>' +
       '<button type="button" class="tpl new" data-act="rNew"><span class="strong">+ Нов рецепт</span></button>' +
       mine.map((r) => '<button type="button" class="tpl' + (d && r.id === d.id ? ' on' : '') + '" data-act="rSel" data-val="' + r.id + '"><span class="strong">' + esc(r.name) + '</span><span class="small">' + esc(r.cat) + ' · ' + r.kcal + ' kcal</span></button>').join('') + '</section>' + editor + '</div>';
     return appLayout('trainer', 'recipes', content);
   },
   actions: {
     ...recipeActions,
+    rTab(el) { rs.tab = el.dataset.val; store.refresh(); },
+    mpClient(el) { mpd.clientId = el.value; },
+    mpName(el) { mpd.name = el.value; },
+    mpTarget(el) { mpd.target = parseInt(el.value, 10) || 0; store.refresh(); },
+    mpDay(el) { mpd.day = Number(el.dataset.val); store.refresh(); },
+    mpPick(el) { mpd.days[mpd.day][el.dataset.val] = el.value || null; store.refresh(); },
+    mpCopy() { const src = mpd.days[mpd.day]; mpd.days = mpd.days.map(() => ({ ...src })); store.refresh(); toast('Денот е копиран на сите денови.'); },
+    mpClear() { mpd.days = Array.from({ length: 7 }, () => ({})); store.refresh(); },
+    mpSend(form) {
+      const s = store.get(); const cid = form.c.value;
+      if (!cid) { toast('Избери клиент.'); return; }
+      if (!mpd.days.some((d) => Object.values(d).some(Boolean))) { toast('Додади барем еден оброк.'); return; }
+      const mp = { id: store.uid('mp'), trainerId: s.trainerId, clientId: cid, name: mpd.name || 'План за исхрана', target: mpd.target, days: JSON.parse(JSON.stringify(mpd.days)), at: Date.now() };
+      store.set((st) => ({ ...st, mealPlans: [mp, ...(st.mealPlans || [])] }));
+      store.notify(cid, 'Нов план за исхрана од твојот тренер: ' + mp.name, '#/c/recipes');
+      store.refresh();
+      toast('Планот е испратен: ' + store.clientName(cid));
+    },
     rSel(el) { rs.sel = el.dataset.val; rs.draft = null; store.refresh(); },
     rNew() {
       const s = store.get();
@@ -131,6 +151,24 @@ export const trainerRecipes = {
     },
   },
 };
+
+function mealPlanner() {
+  const s = store.get();
+  const mine = s.recipes.filter((r) => r.trainerId === s.trainerId);
+  const cl = myClients();
+  if (!mpd.clientId && cl[0]) mpd.clientId = cl[0].id;
+  const d = mpd.days[mpd.day], kc = dayKcal(d);
+  const diff = mpd.target ? kc - mpd.target : 0;
+  const status = !mpd.target ? '' : Math.abs(diff) <= mpd.target * 0.05 ? '<span class="accent strong">✓ во рамките на целта</span>' : diff > 0 ? '<span class="strong">+' + diff + ' kcal над целта</span>' : '<span class="strong">' + (-diff) + ' kcal под целта</span>';
+  const meal = (m) => '<label class="field">' + m + '<select data-change="mpPick" data-val="' + m + '"><option value="">— без —</option>' +
+    [...mine.filter((r) => r.cat === m), ...mine.filter((r) => r.cat !== m)].map((r) => '<option value="' + r.id + '"' + (d[m] === r.id ? ' selected' : '') + '>' + esc(r.name) + ' · ' + r.kcal + ' kcal' + (r.cat !== m ? ' (' + r.cat + ')' : '') + '</option>').join('') + '</select></label>';
+  return '<div class="stack"><div><h1 class="h2 upper">План за исхрана</h1><p class="muted">Состави оброци по денови според целта за калории. Клиентот го гледа во „Рецепти“.</p></div>' +
+    '<div class="card stack-s"><div class="grid-2 gap-s"><label class="field">Име<input value="' + esc(mpd.name) + '" data-input="mpName"></label><label class="field">Цел (kcal/ден)<input inputmode="numeric" value="' + mpd.target + '" data-change="mpTarget"></label></div></div>' +
+    '<div class="chips">' + DAYS.map((n, i) => '<button type="button" class="chip' + (i === mpd.day ? ' on' : '') + '" data-act="mpDay" data-val="' + i + '">' + n + ' · ' + (dayKcal(mpd.days[i]) || '—') + '</button>').join('') + '</div>' +
+    '<div class="card stack-s"><div class="row between"><h2 class="strong">' + DAYS_L[mpd.day] + '</h2><div class="strong">' + kc + (mpd.target ? ' / ' + mpd.target : '') + ' kcal</div></div><div>' + status + '</div>' + MEALS.map(meal).join('') +
+    '<div class="row gap wrap"><button type="button" class="btn btn-ghost grow" data-act="mpCopy">Копирај на сите денови</button><button type="button" class="btn btn-ghost grow" data-act="mpClear">Исчисти</button></div></div>' +
+    '<form class="card light row gap wrap send-card" data-submit="mpSend"><div class="grow"><div class="strong">Испрати го планот на клиент</div></div><label class="sr" for="mp-client">Клиент</label><select id="mp-client" name="c" data-change="mpClient">' + cl.map((c) => '<option value="' + c.id + '"' + (mpd.clientId === c.id ? ' selected' : '') + '>' + esc(c.name) + '</option>').join('') + '</select><button class="btn btn-dark" type="submit">ИСПРАТИ</button></form></div>';
+}
 
 function clean(d) { return { ...d, ingredients: d.ingredients.filter(([a, n]) => (a + n).trim()) }; }
 function save(showToast) {
@@ -171,22 +209,26 @@ function list() {
   }).join('') + '</div>';
 }
 
+function myPlan() {
+  const s = store.get();
+  return (s.mealPlans || []).filter((m) => m.clientId === s.client.id).sort((x, y) => y.at - x.at)[0] || null;
+}
+
 function menu() {
-  const today = store.isoIn(0);
-  const items = plan().filter((m) => m.date >= today && store.recipe(m.recipeId)).sort((a, b) => a.date.localeCompare(b.date) || CATS.indexOf(a.meal) - CATS.indexOf(b.meal));
-  const days = [...new Set(items.map((m) => m.date))];
-  return '<section class="card stack-s menu"><div class="row between"><h2 class="eyebrow muted">МОЕ МЕНИ</h2><button type="button" class="link accent strong" data-act="rcSuggest">Предложи ми за 3 дена</button></div>' +
-    (days.length ? days.map((d) => {
-      const dm = items.filter((m) => m.date === d); const kc = dm.reduce((a, m) => a + store.recipe(m.recipeId).kcal, 0), pr = dm.reduce((a, m) => a + store.recipe(m.recipeId).protein, 0);
-      return '<div class="menu-day"><div class="strong">' + (d === today ? 'Денес' : store.dateLabel(d, true)) + ' <span class="muted small">· ' + kc + ' kcal · ' + pr + ' г протеини</span></div>' +
-        dm.map((m) => '<div class="rrow"><button type="button" class="rrow-main" data-act="openRecipe" data-val="' + m.recipeId + '"><span class="strong">' + esc(store.recipe(m.recipeId).name) + '</span><span class="muted small">' + esc(m.meal) + '</span></button><button type="button" class="heart" data-act="rcUnplan" data-val="' + m.id + '" aria-label="Тргни од мени">✕</button></div>').join('') + '</div>';
-    }).join('') : '<div class="muted small">Сè уште нема планирано. Отвори рецепт и избери кога ќе го јадеш, или допри „Предложи ми“.</div>') + '</section>';
+  const mp = myPlan();
+  if (!mp) return '<section class="card stack-s menu"><h2 class="eyebrow muted">МОЈ ПЛАН ЗА ИСХРАНА</h2><div class="muted small">Тренерот сè уште не ти пратил план за исхрана. Кога ќе ти го прати, ќе го видиш тука по денови.</div></section>';
+  const t = store.trainer(mp.trainerId), d = mp.days[cr.day] || {}, kc = dayKcal(d), pct = mp.target ? Math.min(100, Math.round(kc / mp.target * 100)) : 0;
+  return '<section class="card stack-s menu"><div><h2 class="eyebrow muted">МОЈ ПЛАН ЗА ИСХРАНА</h2><div class="strong">' + esc(mp.name) + '</div><div class="muted small">од ' + esc(t ? t.name : 'тренер') + (mp.target ? ' · цел ' + mp.target + ' kcal на ден' : '') + '</div></div>' +
+    '<div class="chips">' + DAYS.map((n, i) => '<button type="button" class="chip' + (i === cr.day ? ' on' : '') + '" data-act="rcDay" data-val="' + i + '">' + n + '</button>').join('') + '</div>' +
+    '<div class="strong">' + DAYS_L[cr.day] + (cr.day === (new Date().getDay() + 6) % 7 ? ' <span class="muted small">· денес</span>' : '') + '</div>' +
+    MEALS.map((m) => { const r = store.recipe(d[m]); return '<div class="rrow">' + (r ? '<button type="button" class="rrow-main" data-act="openRecipe" data-val="' + r.id + '"><span class="muted small">' + m.toUpperCase() + '</span><span class="strong">' + esc(r.name) + '</span><span class="muted small">' + r.kcal + ' kcal · ' + r.protein + ' г протеини</span></button>' : '<div class="rrow-main"><span class="muted small">' + m.toUpperCase() + '</span><span class="muted">—</span></div>') + '</div>'; }).join('') +
+    '<div class="kbar" role="img" aria-label="' + kc + ' од ' + (mp.target || 0) + ' kcal"><div class="kbar-fill" style="width:' + pct + '%"></div></div><div class="strong">Вкупно: ' + kc + ' kcal' + (mp.target ? ' <span class="muted small">од ' + mp.target + '</span>' : '') + '</div></section>';
 }
 
 export const clientRecipes = {
   title: 'Рецепти',
   render() {
-    const content = '<div class="page-head"><div><h1 class="display-s">Рецепти</h1><p class="muted">Рецептите што ти ги пратиле твоите тренери.</p></div></div>' +
+    const content = '<div class="page-head"><div><h1 class="display-s">Рецепти</h1><p class="muted">Планот за исхрана и рецептите од твојот тренер.</p></div></div>' +
       '<label class="sr" for="rc-q">Барај рецепт или состојка</label><input id="rc-q" class="search" type="search" placeholder="Барај рецепт или состојка…" value="' + esc(cr.q) + '" data-input="rcSearch">' +
       menu() + '<div class="chips">' + chipRow(FILTERS, cr.cat, 'crCat') + '</div><div id="rc-list">' + list() + '</div>';
     return appLayout('client', 'recipes', content);
@@ -205,30 +247,7 @@ export const clientRecipes = {
       cr.serv = Math.min(12, Math.max(1, (cr.serv || r.servings) + Number(el.dataset.val)));
       modal(clientRecipeView(r));
     },
-    rcDate(el) { cr.pdate = el.dataset.val; modal(clientRecipeView(store.recipe(cr.open))); },
-    rcMeal(el) { cr.pmeal = el.dataset.val; modal(clientRecipeView(store.recipe(cr.open))); },
-    rcPlan(el) {
-      const id = el.dataset.val, date = cr.pdate, meal = cr.pmeal;
-      store.set((st) => ({ ...st, mealPlan: [...(st.mealPlan || []).filter((m) => !(m.date === date && m.meal === meal)), { id: store.uid('mp'), recipeId: id, date, meal }] }));
-      toast('Додадено: ' + (date === store.isoIn(0) ? 'денес' : store.dateLabel(date)) + ' · ' + meal);
-    },
-    rcUnplan(el) { store.set((st) => ({ ...st, mealPlan: (st.mealPlan || []).filter((m) => m.id !== el.dataset.val) })); },
-    rcSuggest() {
-      const s = store.get(); const mine = visible().map((v) => v.r); const add = [];
-      if (!mine.length) { toast('Немаш рецепти од кои да предложам.'); return; }
-      for (let d = 0; d < 3; d++) {
-        const date = store.isoIn(d);
-        ['Појадок', 'Ручек', 'Вечера'].forEach((meal, mi) => {
-          if (plan().some((m) => m.date === date && m.meal === meal)) return;
-          const used = [...plan(), ...add].filter((m) => m.date === date).map((m) => m.recipeId);
-          const pool = mine.filter((r) => r.cat === meal && !used.includes(r.id)); const rest = mine.filter((r) => !used.includes(r.id));
-          const src = pool.length ? pool : rest.length ? rest : mine;
-          add.push({ id: store.uid('mp'), recipeId: src[d % src.length].id, date, meal });
-        });
-      }
-      store.set((st) => ({ ...st, mealPlan: [...(st.mealPlan || []), ...add] }));
-      toast(add.length ? 'Предложено мени за 3 дена.' : 'Менито за 3 дена е веќе полно.');
-    },
+    rcDay(el) { cr.day = Number(el.dataset.val); store.refresh(); },
     rcNote(el) {
       const id = el.dataset.val, v = el.value;
       store.set((st) => ({ ...st, recipeNotes: { ...(st.recipeNotes || {}), [id]: v } }));

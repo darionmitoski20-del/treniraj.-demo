@@ -846,3 +846,8 @@ a.msg-recipe { text-decoration: none; }
 .modal-box .chips { flex-wrap: nowrap; overflow-x: auto; margin: 0; padding-bottom: 4px; scrollbar-width: none; }
 .modal-box .chip { flex: none; white-space: nowrap; }
 .modal-box .chips { flex: none; min-height: 44px; }
+.kbar{height:8px;border-radius:99px;background:var(--line);overflow:hidden}.kbar-fill{height:100%;background:var(--accent);border-radius:99px}
+.menu .row.between,.card .row.between{display:flex;justify-content:space-between;align-items:center}
+.menu > div > div { display: block; }
+.card .row.between { flex-wrap: wrap; gap: 4px 12px; }
+.card .row.wrap > .btn { min-width: 0; padding-left: 10px; padding-right: 10px; }
