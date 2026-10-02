@@ -8,6 +8,7 @@ import { shortName } from './public.js';
 import { recipeActions } from './recipes.js';
 import { qrSvg, qrPng } from '../qr.js';
 import { subLine, subText, subTag, payActions, fmtDate } from './pay.js';
+import * as prog from '../progress.js';
 
 const tid = () => store.get().trainerId;
 
@@ -176,6 +177,8 @@ export const clients = {
         (list.length ? list.map((c) => '<div class="tr"><span class="row gap-s"><span class="avatar">' + initials(c.name) + '</span><span><span class="strong">' + esc(c.name) + '</span><br><span class="muted small">' + pkgLine(c.id) + '</span></span></span>' +
           '<span class="stack-s"><span class="strong small">' + esc(c.goal) + '</span><span class="bar thin"><span style="width:' + c.progress + '%"></span></span></span><span class="muted">' + esc(c.type) + '</span><span class="strong">' + nextFor(c.id) + '</span>' +
           '<a class="btn btn-ghost btn-sm" href="#/t/clients/' + c.id + '">Напредок</a></div>').join('') : '<div class="muted pad">Нема клиенти.</div>') + '</div>';
+    } else if (cState.tab === 'Напредок') {
+      body = progressTable(list);
     } else if (cState.tab === 'Барања') {
       body = '<section class="card">' + requestRows(reqs) + '</section>';
     } else {
@@ -183,7 +186,7 @@ export const clients = {
       body = '<section class="card">' + (old.length ? old.map((r) => '<div class="list-row dim"><span class="avatar">' + initials(r.clientName) + '</span><span class="grow strong">' + esc(r.clientName) + '</span><span class="muted small">одбиено</span></div>').join('') : '<div class="muted small">Архивата е празна. Завршените соработки остануваат тука само за читање.</div>') + '</section>';
     }
     const content = '<div class="page-head"><h1 class="display-s">Клиенти</h1><label class="field-inline"><span class="sr">Барај</span><input id="c-q" type="search" placeholder="Барај клиент…" value="' + esc(cState.q) + '" data-input="cq"></label><button type="button" class="btn btn-accent btn-sm" data-act="invite">+ ПОКАНИ КЛИЕНТ</button></div>' +
-      '<div class="chips">' + chipRow(['Активни', 'Барања', 'Архива'], cState.tab, 'cTab') + (reqs.length ? '<span class="tag tag-accent">' + reqs.length + ' нови</span>' : '') + '</div>' + body;
+      '<div class="chips">' + chipRow(['Активни', 'Напредок', 'Барања', 'Архива'], cState.tab, 'cTab') + (reqs.length ? '<span class="tag tag-accent">' + reqs.length + ' нови</span>' : '') + '</div>' + body;
     return appLayout('trainer', 'clients', content);
   },
   actions: {
@@ -495,6 +498,12 @@ function clientProgress(id) {
   return { shared: false, share: {}, data: [] };
 }
 
+function goalsBlock(cid) {
+  const bs = prog.bests(cid);
+  return '<section class="stack-s"><h2 class="eyebrow muted">ЦЕЛИ</h2>' + prog.goalList(cid, 'trainer') + '</section>' + prog.goalForm(cid, 'trainer') +
+    '<section class="card stack-s"><h2 class="eyebrow muted">РЕКОРДИ ВО ВЕЖБИ</h2>' + (bs.length ? bs.map((b) => '<div class="kv"><span class="strong">' + esc(b.ex) + '</span><span class="right"><span class="strong">' + b.best.kg + ' кг</span>' + (b.gain > 0 ? ' <span class="ok-t small">+' + b.gain + '</span>' : '') + '</span></div>').join('') : '<div class="muted small">Клиентот сè уште нема внесено рекорди.</div>') + '</section>';
+}
+
 function pkgSection(cid) {
   const sub = store.subFor(cid, tid());
   const plans = store.plansFor(cid, tid());
@@ -510,6 +519,23 @@ function pkgSection(cid) {
   return packageCard + planCards;
 }
 
+function progressTable(list) {
+  if (!list.length) return '<div class="muted pad">Нема клиенти.</div>';
+  const rows = list.map((c) => {
+    const w = prog.weightData(c.id), last = prog.lastActivity(c.id), days = last ? Math.floor((Date.now() - last) / 86400000) : 99;
+    const gs = prog.goalsOf(c.id), pend = gs.filter((g) => g.status === 'proposed').length, act = gs.filter((g) => g.status === 'active')[0];
+    const best = prog.bests(c.id)[0];
+    return { c, w, last, days, pend, act, best, stale: days > 7 };
+  }).sort((a, b) => (b.stale - a.stale) || (b.pend - a.pend) || (b.days - a.days));
+  return '<div class="pgrid">' + rows.map(({ c, w, last, days, pend, act, best, stale }) => {
+    const dw = w.length > 1 ? w[w.length - 1].weight - w[0].weight : 0;
+    return '<a class="card pg-row" href="#/t/clients/' + c.id + '"><span class="row gap-s"><span class="avatar">' + initials(c.name) + '</span><span class="grow"><span class="strong">' + esc(c.name) + '</span><br><span class="small ' + (stale ? 'danger-t' : 'muted') + '">' + (last ? 'последен внес ' + prog.agoLabel(last) : 'нема внес') + (stale ? ' ⚠' : '') + '</span></span>' + (pend ? '<span class="tag tag-accent">' + pend + ' чека одобрување</span>' : '') + '</span>' +
+      '<span class="pg-cell"><span class="eyebrow muted">ТЕЖИНА</span>' + (w.length ? '<span class="strong">' + w[w.length - 1].weight.toFixed(1) + ' кг</span> <span class="small ' + (dw <= 0 ? 'ok-t' : 'danger-t') + '">' + (dw > 0 ? '+' : dw < 0 ? '−' : '±') + Math.abs(dw).toFixed(1) + '</span>' : '<span class="muted">—</span>') + '</span>' +
+      '<span class="pg-cell"><span class="eyebrow muted">РЕКОРД</span>' + (best ? '<span class="strong">' + esc(best.ex) + ' ' + best.best.kg + ' кг</span>' : '<span class="muted">—</span>') + '</span>' +
+      '<span class="pg-cell"><span class="eyebrow muted">ЦЕЛ</span>' + (act ? '<span class="small strong">' + esc(prog.goalTitle(act)) + '</span><span class="bar thin"><span style="width:' + prog.goalPct(act) + '%"></span></span>' : '<span class="muted">нема цел</span>') + '</span></a>';
+  }).join('') + '</div>';
+}
+
 let cMetric = 'weight';
 export const clientDetail = {
   title: 'Напредок на клиент',
@@ -522,7 +548,7 @@ export const clientDetail = {
       '<div><h1 class="display-s">' + esc(c.name) + '</h1><div class="muted small">' + esc(c.type || '') + ' · од ' + esc(c.since || '') + (next ? ' · следен термин ' + store.whenLabel(next) : '') + '</div></div></div></div>' +
       '<div class="row gap-s wrap"><a class="btn btn-ghost btn-sm" href="#/t/messages/' + p.id + '">Порака</a><a class="btn btn-ghost btn-sm" href="#/t/plans?c=' + p.id + '">Прати план</a>' + (myFeatures().recipes ? '<a class="btn btn-ghost btn-sm" href="#/t/recipes?c=' + p.id + '">Прати рецепт</a>' : '') + '</div>';
     if (!pr.data.length || !pr.shared) {
-      return appLayout('trainer', 'clients', head + '<div class="booking"><div class="stack grow"><div class="empty">' + (pr.data.length ? 'Клиентот избрал да не го споделува напредокот.' : 'Клиентот сè уште нема внесено напредок.') + '<br><button type="button" class="btn btn-accent btn-sm" style="margin-top:12px" data-act="askProgress" data-val="' + p.id + '">Замоли го да внесе напредок</button></div></div><aside class="stack w-330">' + pkgSection(p.id) + '</aside></div>');
+      return appLayout('trainer', 'clients', head + '<div class="booking"><div class="stack grow"><div class="empty">' + (pr.data.length ? 'Клиентот избрал да не го споделува напредокот.' : 'Клиентот сè уште нема внесено напредок.') + '<br><button type="button" class="btn btn-accent btn-sm" style="margin-top:12px" data-act="askProgress" data-val="' + p.id + '">Замоли го да внесе напредок</button></div></div><aside class="stack w-330">' + goalsBlock(p.id) + pkgSection(p.id) + '</aside></div>');
     }
     const data = pr.data;
     const first = data[0], last = data[data.length - 1];
@@ -545,11 +571,12 @@ export const clientDetail = {
         '<section class="card"><h2 class="eyebrow muted">ВНЕСУВАЊА</h2><div class="ptable"><div class="ptr th"><span>НЕДЕЛА</span><span>КИЛАЖА</span><span>СТРУК</span><span>ТРЕНИНЗИ</span></div>' +
           data.slice().reverse().map((x, i, arr) => { const prev = arr[i + 1]; const dw = prev ? x.weight - prev.weight : 0;
             return '<div class="ptr"><span class="strong">Нед ' + x.week + '</span><span>' + x.weight.toFixed(1) + (prev ? ' <span class="' + (dw <= 0 ? 'down' : 'up') + '">' + sign(dw) + '</span>' : '') + '</span><span>' + x.waist + '</span><span>' + x.workouts + '</span></div>'; }).join('') + '</div></section></div>' +
-      '<aside class="stack w-330">' + pkgSection(p.id) + (info.length ? '<section class="card"><h2 class="eyebrow muted">ЗА КЛИЕНТОТ</h2>' + info.map(([k, v]) => '<div class="kv"><span class="muted">' + k + '</span><span class="strong right">' + v + '</span></div>').join('') + '<p class="muted small">Клиентот одлучува што споделува.</p></section>' : '') +
+      '<aside class="stack w-330">' + goalsBlock(p.id) + pkgSection(p.id) + (info.length ? '<section class="card"><h2 class="eyebrow muted">ЗА КЛИЕНТОТ</h2>' + info.map(([k, v]) => '<div class="kv"><span class="muted">' + k + '</span><span class="strong right">' + v + '</span></div>').join('') + '<p class="muted small">Клиентот одлучува што споделува.</p></section>' : '') +
         '<form class="card stack-s" data-submit="saveComment"><input type="hidden" name="cid" value="' + p.id + '"><label class="field">Коментар за напредокот<textarea name="text" rows="4" placeholder="Што оди добро, што да се смени…">' + esc(pr.comment || '') + '</textarea></label><button type="submit" class="btn btn-accent">ИСПРАТИ КОМЕНТАР</button><p class="muted small">Клиентот го гледа коментарот во „Напредок“ и добива известување.</p></form></aside></div>';
     return appLayout('trainer', 'clients', content);
   },
   actions: {
+    ...prog.progActions,
     cMetric(el) { cMetric = el.dataset.val; store.refresh(); },
     ...payActions,
     askProgress(el) { store.addMessage(el.dataset.val, tid(), { from: tid(), text: 'Те молам внеси го напредокот за оваа недела (килажа и мерки) за да го следиме заедно.' }); toast('Пораката е испратена.'); },

@@ -75,6 +75,18 @@ function initialState() {
     // испратени планови со содржина; done = штиклирани вежби („ден:вежба“)
     myTemplates: [],
     pins: {},
+    lifts: [
+      { id: 'lf1', clientId: 'c1', ex: 'Чучањ', kg: 40, reps: 8, at: ts(-20) }, { id: 'lf2', clientId: 'c1', ex: 'Чучањ', kg: 45, reps: 8, at: ts(-6) },
+      { id: 'lf3', clientId: 'c1', ex: 'Мртво дизање', kg: 50, reps: 6, at: ts(-13) },
+      { id: 'lf4', clientId: 'c2', ex: 'Бенч прес', kg: 60, reps: 5, at: ts(-20) }, { id: 'lf5', clientId: 'c2', ex: 'Бенч прес', kg: 65, reps: 5, at: ts(-8) },
+      { id: 'lf6', clientId: 'c3', ex: 'Бенч прес', kg: 90, reps: 3, at: ts(-30) }, { id: 'lf7', clientId: 'c3', ex: 'Бенч прес', kg: 95, reps: 3, at: ts(-9) }, { id: 'lf8', clientId: 'c3', ex: 'Бенч прес', kg: 97.5, reps: 1, at: ts(-3) },
+    ],
+    goals: [
+      { id: 'gl1', clientId: 'c1', kind: 'weight', target: 70, start: 78, due: isoIn(45), by: 'trainer', status: 'active', at: ts(-10) },
+      { id: 'gl2', clientId: 'c3', kind: 'lift', ex: 'Бенч прес', target: 100, start: 90, due: isoIn(30), by: 'trainer', status: 'active', at: ts(-30) },
+      { id: 'gl3', clientId: 'c2', kind: 'lift', ex: 'Чучањ', target: 100, start: 0, due: isoIn(60), by: 'client', status: 'proposed', at: ts(-1) },
+    ],
+    progressAt: { c1: ts(-3), c2: ts(-2), c3: ts(-9), c4: ts(-11) },
     sentPlans: [
       { id: 'pl1', trainerId: 't1', clientId: 'c1', name: 'План — недела 4', at: ts(-2),
         days: TEMPLATES[0].days.map((d) => d.map((r) => [...r, false])), done: { '0:0': true, '0:1': true, '0:2': true } },

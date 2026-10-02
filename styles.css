@@ -851,3 +851,11 @@ a.msg-recipe { text-decoration: none; }
 .menu > div > div { display: block; }
 .card .row.between { flex-wrap: wrap; gap: 4px 12px; }
 .card .row.wrap > .btn { min-width: 0; padding-left: 10px; padding-right: 10px; }
+
+/* v13 рекорди и цели */
+.pgrid { display: grid; gap: 10px; }
+.pg-row { display: grid; grid-template-columns: 1.4fr 1fr 1.2fr 1.4fr; gap: 12px; align-items: center; color: var(--text); }
+.pg-cell { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.danger-t { color: var(--danger); } .ok-t { color: var(--ok); }
+.goal .row.between { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+@media (max-width: 760px) { .pg-row { grid-template-columns: 1fr 1fr; } .pg-row > :first-child { grid-column: 1 / -1; } .pg-row > :last-child { grid-column: 1 / -1; } }

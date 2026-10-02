@@ -8,6 +8,7 @@ import { chatBubbles, composer, send, scrollChat, convList, pinBar, setCtx, chat
 import { partnersContent, partnerActions, shortName } from './public.js';
 import { reviewActions } from './social.js';
 import { recipeActions } from './recipes.js';
+import * as prog from '../progress.js';
 
 const me = () => store.get().client;
 
@@ -156,15 +157,23 @@ export const booking = {
 
 // ---------- Напредок ----------
 let metric = 'weight';
+let pSec = 'Телесно';
 export const progress = {
   title: 'Напредок',
   render() {
     const s = store.get(); const pr = s.progress;
+    const secChips = '<div class="chips">' + chipRow(['Телесно', 'Рекорди', 'Цели'], pSec, 'pSec') + '</div>';
+    if (pSec === 'Рекорди') {
+      return appLayout('client', 'progress', '<div class="page-head"><h1 class="display-s">Мој напредок</h1>' + secChips + '</div><div class="booking"><div class="stack grow">' + prog.liftList(s.client.id) + '</div><aside class="w-330">' + prog.liftForm(s.client.id) + '</aside></div>');
+    }
+    if (pSec === 'Цели') {
+      return appLayout('client', 'progress', '<div class="page-head"><h1 class="display-s">Мој напредок</h1>' + secChips + '</div><div class="booking"><div class="stack grow">' + prog.goalList(s.client.id, 'client') + '</div><aside class="w-330">' + prog.goalForm(s.client.id, 'client') + '</aside></div>');
+    }
     const m = { weight: ['Тежина', 'кг'], waist: ['Струк', 'cm'], workouts: ['Тренинзи', ''] };
     const vals = pr.map((x) => x[metric]);
     const first = vals[0], last = vals[vals.length - 1];
     const diff = metric === 'workouts' ? 'вкупно ' + vals.reduce((a, b) => a + b, 0) + ' тренинзи' : (last - first <= 0 ? '−' : '+') + Math.abs(last - first).toFixed(1) + ' ' + m[metric][1] + ' од почеток';
-    const content = '<div class="page-head"><h1 class="display-s">Мој напредок</h1><div class="chips">' +
+    const content = '<div class="page-head"><h1 class="display-s">Мој напредок</h1>' + secChips + '<div class="chips">' +
       Object.entries(m).map(([k, v]) => '<button type="button" class="chip' + (k === metric ? ' on' : '') + '" data-act="metric" data-val="' + k + '">' + v[0] + '</button>').join('') + '</div></div>' +
       '<div class="booking"><div class="stack grow"><section class="card"><div class="row gap wrap baseline"><span class="display-s">' + (metric === 'weight' ? last.toFixed(1) : last) + ' ' + m[metric][1] + '</span><span class="accent strong">' + diff + '</span><span class="grow"></span><span class="muted small strong">последни ' + pr.length + ' недели</span></div>' +
         lineChart(vals) + '<div class="axis">' + pr.map((x) => '<span>Нед ' + x.week + '</span>').join('') + '</div></section>' +
@@ -178,6 +187,8 @@ export const progress = {
     return appLayout('client', 'progress', content);
   },
   actions: {
+    ...prog.progActions,
+    pSec(el) { pSec = el.dataset.val; store.refresh(); },
     metric(el) { metric = el.dataset.val; store.refresh(); },
     photoNote() { toast('Во вистинската апликација тука прикачуваш фотографија.'); },
     addProgress(form) {
@@ -185,7 +196,7 @@ export const progress = {
       store.markStep('progress');
       if (form.share.checked) store.clientTrainers(me().id).forEach((t) => store.notify(t.id, shortName(me().name) + ' внесе нов напредок', '#/t/clients'));
       store.set((s) => { const last = s.progress[s.progress.length - 1];
-        return { ...s, progress: [...s.progress, { week: last.week + 1, weight: num(form.weight.value, last.weight), waist: num(form.waist.value, last.waist), workouts: Math.round(num(form.workouts.value, last.workouts)) }] }; });
+        return { ...s, progressAt: { ...(s.progressAt || {}), [s.client.id]: Date.now() }, progress: [...s.progress, { week: last.week + 1, weight: num(form.weight.value, last.weight), waist: num(form.waist.value, last.waist), workouts: Math.round(num(form.workouts.value, last.workouts)) }] }; });
       toast('Напредокот е зачуван' + (form.share.checked ? ' и споделен со тренерите.' : '.'));
     },
   },
