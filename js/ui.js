@@ -106,12 +106,12 @@ const CLIENT_NAV = [
   ['#/c/home', 'Мој преглед', 'home'], ['#/', 'Најди тренер', 'find'], ['#/c/messages', 'Пораки', 'messages'],
   ['#/c/booking', 'Термини', 'booking'], ['#/c/payments', 'Плаќања', 'payments'], ['#/c/progress', 'Напредок', 'progress'], ['#/c/recipes', 'План за исхрана', 'recipes'],
   ['#/c/challenges', 'Предизвици', 'challenges'], ['#/c/partners', 'Партнери', 'partners'],
-  ['#/c/notifications', 'Известувања', 'notif'], ['#/c/settings', 'Мој профил', 'settings'],
+  ['#/c/settings', 'Мој профил', 'settings'],
 ];
 const TRAINER_NAV = [
   ['#/t/home', 'Преглед', 'home'], ['#/t/clients', 'Клиенти', 'clients'], ['#/t/payments', 'Наплата', 'payments'], ['#/t/messages', 'Пораки', 'messages'],
   ['#/t/calendar', 'Календар', 'calendar'], ['#/t/plans', 'Планови и шаблони', 'plans'], ['#/t/recipes', 'План за исхрана', 'recipes'],
-  ['#/t/notifications', 'Известувања', 'notif'], ['#/t/profile', 'Мој профил', 'profile'],
+  ['#/t/profile', 'Мој профил', 'profile'],
 ];
 const PARTNER_NAV = [
   ['#/p/home', 'Преглед', 'home'], ['#/p/profile', 'Уреди профил', 'edit'], ['#/partner/p1', 'Мој јавен профил', 'view'], ['#/partners', 'Сите партнери', 'all'],
