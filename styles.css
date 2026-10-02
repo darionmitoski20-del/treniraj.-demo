@@ -831,3 +831,18 @@ a.msg-recipe { text-decoration: none; }
   .pinbar { padding: 8px 12px; } .rec-bar { padding: 10px 12px; }
 }
 .chat-layout.no-chat .thread.on { background: transparent; border-color: var(--line); }
+
+/* v12 рецепти (клиент) */
+.search { width: 100%; font-size: 16px; }
+.rlist { display: flex; flex-direction: column; gap: 8px; }
+.rrow { display: flex; align-items: center; gap: 8px; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 4px 6px 4px 0; }
+.rrow-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; text-align: left; padding: 10px 14px; color: var(--text); background: none; border: 0; cursor: pointer; }
+.heart { min-width: 44px; min-height: 44px; font-size: 22px; background: none; border: 0; color: var(--muted); cursor: pointer; }
+.heart.on { color: var(--accent); }
+.serv-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; }
+.serv-b { min-width: 44px; padding: 8px 0; }
+.menu-day { display: flex; flex-direction: column; gap: 6px; padding-top: 6px; }
+.menu .row.between { justify-content: space-between; align-items: center; }
+.modal-box .chips { flex-wrap: nowrap; overflow-x: auto; margin: 0; padding-bottom: 4px; scrollbar-width: none; }
+.modal-box .chip { flex: none; white-space: nowrap; }
+.modal-box .chips { flex: none; min-height: 44px; }
