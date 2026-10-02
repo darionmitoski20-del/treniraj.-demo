@@ -268,6 +268,7 @@ export function recordPayment(subId, method, amount) {
 }
 // Подсетник 3 дена пред истекот (и по истекот), еднаш по период
 export function runReminders() {
+  normalizeBookings();
   let changed = false; const add = [];
   const subs = (state.subs || []).map((x) => {
     const d = daysLeft(x);
@@ -372,4 +373,28 @@ export function setPin(cid, tid, text) {
   const pins = { ...(state.pins || {}) }; const k = threadKey(cid, tid);
   if (text) pins[k] = { text, at: Date.now() }; else delete pins[k];
   set((s) => ({ ...s, pins }));
+}
+
+// ---- Термини со вистински датуми ----
+const DSHORT = ['Пон', 'Вто', 'Сре', 'Чет', 'Пет', 'Саб', 'Нед'];
+const DLONG = ['Понеделник', 'Вторник', 'Среда', 'Четврток', 'Петок', 'Сабота', 'Недела'];
+const MSHORT = ['јан', 'фев', 'мар', 'апр', 'мај', 'јун', 'јул', 'авг', 'сеп', 'окт', 'ное', 'дек'];
+export const dayIdxOf = (iso) => (new Date(iso + 'T12:00:00').getDay() + 6) % 7;
+export function dateLabel(iso, full) { if (!iso) return ''; const d = new Date(iso + 'T12:00:00'); return (full ? DLONG : DSHORT)[dayIdxOf(iso)] + ', ' + d.getDate() + ' ' + MSHORT[d.getMonth()]; }
+export function whenLabel(b) { return dateLabel(b.date) + ' · ' + b.time; }
+export function slotTakenOn(tid, date, time) { return (state.bookings || []).some((b) => b.trainerId === tid && b.date === date && b.time === time); }
+export function upcomingBookings(filter) {
+  const today = isoIn(0);
+  return (state.bookings || []).filter((b) => b.date >= today && (!filter || filter(b))).sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
+}
+// Стари термини без датум добиваат првиот следен датум за тој ден
+export function normalizeBookings() {
+  let ch = false; const idx = (new Date().getDay() + 6) % 7;
+  const bs = (state.bookings || []).map((b) => {
+    let x = b;
+    if (!x.date) { x = { ...x, date: isoIn(((x.day - idx) + 7) % 7) }; ch = true; }
+    if (x.status === 'pending') { x = { ...x, status: 'confirmed' }; ch = true; }
+    return x;
+  });
+  if (ch) { state = { ...state, bookings: bs }; save(); }
 }

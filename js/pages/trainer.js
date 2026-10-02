@@ -128,7 +128,7 @@ export const home = {
     const clients = myClients(); const reqs = pendingRequests();
     const week = s.bookings.filter((b) => b.trainerId === t.id);
     const todayIdx = (new Date().getDay() + 6) % 7;
-    const todays = week.filter((b) => b.day === todayIdx).sort((a, b) => a.time.localeCompare(b.time));
+    const todays = week.filter((b) => b.date === store.isoIn(0)).sort((a, b) => a.time.localeCompare(b.time));
     const earnings = store.monthEarnings(t.id);
     const unpaid = store.unpaidTotal(t.id);
     const expiring = store.dueSubs(t.id).slice(0, 5);
@@ -169,7 +169,7 @@ export const clients = {
     const reqs = pendingRequests();
     const q = cState.q.toLowerCase();
     const list = myClients().filter((c) => !q || c.name.toLowerCase().includes(q));
-    const nextFor = (cid) => { const b = s.bookings.find((x) => x.clientId === cid && x.trainerId === tid()); return b ? DAY_SHORT[b.day] + ', ' + b.time : 'не е закажан'; };
+    const nextFor = (cid) => { const b = store.upcomingBookings((x) => x.clientId === cid && x.trainerId === tid())[0]; return b ? store.whenLabel(b) : 'не е закажан'; };
     let body;
     if (cState.tab === 'Активни') {
       body = '<div class="table"><div class="tr th"><span>КЛИЕНТ</span><span>ЦЕЛ И НАПРЕДОК</span><span>ТИП</span><span>СЛЕДЕН ТЕРМИН</span><span></span></div>' +
@@ -204,12 +204,12 @@ export const messages = {
     const c = list.find((x) => x.id === p.id) || list[0];
     const hasChat = !!p.id && list.some((x) => x.id === p.id);
     setCtx({ cid: c.id, tid: tid(), from: tid(), auto: c.id });
-    const bk = store.get().bookings.find((b) => b.clientId === c.id && b.trainerId === tid() && b.status !== 'pending');
+    const bk = store.upcomingBookings((b) => b.clientId === c.id && b.trainerId === tid())[0];
     const items = list.map((x) => { const th = store.thread(x.id, tid()); return { id: x.id, name: x.name, sub: x.goal, last: th[th.length - 1] }; });
     const content = '<div class="chat-layout two ' + (hasChat ? 'has-chat' : 'no-chat') + '"><section class="threads"><h1 class="h2 upper">Пораки</h1>' + convList(items, c.id, '#/t/messages/', tid()) + '</section>' +
       '<section class="chat"><header class="chat-head"><a class="btn btn-ghost btn-icon chat-back" href="#/t/messages" aria-label="Назад кон разговори">←</a><span class="avatar">' + initials(c.name) + '</span><div class="grow"><div class="strong">' + esc(c.name) + '</div><div class="muted small">' + esc(c.goal) + ' · ' + esc(c.type.toLowerCase()) + '</div></div>' +
         '<a class="btn btn-accent btn-sm" href="#/t/clients/' + c.id + '">Напредок</a><a class="btn btn-ghost btn-sm" href="#/t/plans?c=' + c.id + '">Прати план</a>' + (myFeatures().recipes ? '<a class="btn btn-ghost btn-sm" href="#/t/recipes?c=' + c.id + '">Прати рецепт</a>' : '') + '<button type="button" class="btn btn-accent btn-sm" data-act="videoCall">Видео повик</button></header>' +
-        pinBar({ cid: c.id, tid: tid(), goal: c.goal, next: bk ? DAY_NAMES[bk.day] + ', ' + bk.time : '', editable: true }) +
+        pinBar({ cid: c.id, tid: tid(), goal: c.goal, next: bk ? store.whenLabel(bk) : '', editable: true }) +
         '<div class="chat-body">' + chatBubbles(store.thread(c.id, tid()), tid()) + '</div>' + composer('sendMsg') + '</section></div>';
     return appLayout('trainer', 'messages', content, { full: true });
   },
@@ -228,61 +228,57 @@ function setWork(day, patch) {
   store.markStep('cal');
   store.set((s) => { const work = store.workOf(s.trainerId).map((w, i) => (i === day ? { ...w, ...patch } : w)); return { ...s, availability: { ...s.availability, work } }; });
 }
+let calWeek = 0;
+const timesFor = (date) => store.slotsFor(tid(), store.dayIdxOf(date)).filter((t) => !store.slotTakenOn(tid(), date, t));
+const timeOpts = (date) => { const ts = timesFor(date); return ts.length ? ts.map((t) => '<option>' + t + '</option>').join('') : '<option value="">Нема слободни часови</option>'; };
 export const calendar = {
   title: 'Календар',
   render() {
     const s = store.get();
-    const bookings = s.bookings.filter((b) => b.trainerId === tid());
-    const hours = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19];
     const todayIdx = (new Date().getDay() + 6) % 7;
-    const cols = DAY_SHORT.map((d, i) => {
-      const evs = bookings.filter((b) => b.day === i).map((b) => { const h = parseInt(b.time, 10);
-        return '<button type="button" class="ev ' + (b.type === 'Во живо' ? 'live' : 'online') + (b.status === 'pending' ? ' pending' : '') + '" style="top:' + ((h - 8) * 44 + 2) + 'px" data-act="evOpen" data-val="' + b.id + '"><span class="strong">' + esc(b.clientName) + '</span><span class="small">' + b.time + '</span></button>'; }).join('');
+    const dates = DAY_SHORT.map((_, i) => store.isoIn(i - todayIdx + calWeek * 7));
+    const today = store.isoIn(0);
+    const bookings = s.bookings.filter((b) => b.trainerId === tid() && dates.includes(b.date));
+    const hours = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19];
+    const cols = dates.map((dt, i) => {
+      const evs = bookings.filter((b) => b.date === dt).map((b) => { const h = parseInt(b.time, 10);
+        return '<button type="button" class="ev ' + (b.type === 'Во живо' ? 'live' : 'online') + '" style="top:' + ((h - 8) * 44 + 2) + 'px" data-act="evOpen" data-val="' + b.id + '"><span class="strong">' + esc(b.clientName) + '</span><span class="small">' + b.time + '</span></button>'; }).join('');
       return '<div class="cal-col' + (i === 6 ? ' closed' : '') + '">' + evs + '</div>';
     }).join('');
-    const list = DAY_NAMES.map((dn, i) => {
-      const items = bookings.filter((b) => b.day === i).sort((a, b) => a.time.localeCompare(b.time));
-      if (!items.length && i !== todayIdx) return '';
-      return '<section class="cal-day' + (i === todayIdx ? ' today' : '') + '"><h3>' + dn.toUpperCase() + (i === todayIdx ? ' · ДЕНЕС' : '') + '</h3>' +
-        (items.length ? items.map((b) => '<button type="button" class="cal-item" data-act="evOpen" data-val="' + b.id + '"><span class="cal-time">' + b.time + '</span><span class="cal-dot' + (b.type === 'Во живо' ? '' : ' online') + '"></span><span class="grow"><span class="strong block">' + esc(b.clientName) + '</span><span class="muted small">' + esc(b.type) + (b.status === 'pending' ? ' · чека потврда' : '') + '</span></span><span class="muted">›</span></button>').join('') : '<p class="muted small">Нема термини.</p>') + '</section>';
-    }).join('');
+    const list = dates.map((dt, i) => {
+      const items = bookings.filter((b) => b.date === dt).sort((a, b) => a.time.localeCompare(b.time));
+      if (!items.length && dt !== today) return '';
+      return '<section class="cal-day' + (dt === today ? ' today' : '') + '"><h3>' + store.dateLabel(dt, true).toUpperCase() + (dt === today ? ' · ДЕНЕС' : '') + '</h3>' +
+        (items.length ? items.map((b) => '<button type="button" class="cal-item" data-act="evOpen" data-val="' + b.id + '"><span class="cal-time">' + b.time + '</span><span class="cal-dot' + (b.type === 'Во живо' ? '' : ' online') + '"></span><span class="grow"><span class="strong block">' + esc(b.clientName) + '</span><span class="muted small">' + esc(b.type) + '</span></span><span class="muted">›</span></button>').join('') : '<p class="muted small">Нема термини.</p>') + '</section>';
+    }).join('') || '<p class="muted small pad">Нема термини оваа недела.</p>';
     const work = store.workOf(tid());
     const hourOpts = (a, z, sel) => { let o = ''; for (let h = a; h <= z; h++) o += '<option value="' + h + '"' + (h === sel ? ' selected' : '') + '>' + String(h).padStart(2, '0') + ':00</option>'; return o; };
-    const pend = store.pendingBookings(tid());
-    const pendBlock = pend.length ? '<section class="card accent-line stack-s"><h2 class="eyebrow">БАРАЊА ЗА ТЕРМИН · ' + pend.length + '</h2>' + pend.map((b) => '<div class="stack-s rq-item"><div><span class="strong">' + esc(b.clientName) + '</span><br><span class="muted small">' + DAY_NAMES[b.day] + ', ' + b.time + ' · ' + esc(b.type.toLowerCase()) + '</span></div><div class="row gap-s"><button type="button" class="btn btn-accent btn-sm grow" data-act="bkOk" data-val="' + b.id + '">ПОТВРДИ</button><button type="button" class="btn btn-ghost btn-sm grow" data-act="bkNo" data-val="' + b.id + '">ОДБИЈ</button></div></div>').join('') + '</section>' : '';
-    const content = '<div class="page-head"><h1 class="display-s">Календар</h1><span class="muted strong">Оваа недела</span></div>' +
+    const wk = store.dateLabel(dates[0]).split(', ')[1] + ' – ' + store.dateLabel(dates[6]).split(', ')[1];
+    const content = '<div class="page-head"><h1 class="display-s">Календар</h1><span class="row gap-s"><button type="button" class="btn btn-ghost btn-icon" data-act="calPrev" aria-label="Претходна недела"' + (calWeek <= 0 ? ' disabled' : '') + '>‹</button><span class="muted strong">' + (calWeek === 0 ? 'Оваа недела · ' : '') + wk + '</span><button type="button" class="btn btn-ghost btn-icon" data-act="calNext" aria-label="Следна недела">›</button></span></div>' +
+      '<div class="card note">Термините ги договараш со клиентот во четот, а потоа ги внесуваш тука. Клиентот добива известување.</div>' +
       '<div class="cal-list m-show">' + list + '</div>' +
       '<div class="legend hide-m"><span><i class="lg live"></i>Во живо</span><span><i class="lg online"></i>Онлајн / видео</span><span><i class="lg closed"></i>Неработен ден</span></div>' +
-      '<div class="booking"><div class="cal grow hide-m"><div class="cal-head"><span></span>' + DAY_SHORT.map((d, i) => '<span class="' + (i === todayIdx ? 'accent' : '') + '">' + d + '</span>').join('') + '</div>' +
+      '<div class="booking"><div class="cal grow hide-m"><div class="cal-head"><span></span>' + DAY_SHORT.map((d, i) => '<span class="' + (dates[i] === today ? 'accent' : '') + '">' + d + '<br><span class="small">' + store.dateLabel(dates[i]).split(', ')[1] + '</span></span>').join('') + '</div>' +
         '<div class="cal-body"><div class="cal-hours">' + hours.map((h) => '<span>' + String(h).padStart(2, '0') + '</span>').join('') + '</div>' + cols + '</div></div>' +
-      '<aside class="stack w-300"><button type="button" class="btn btn-accent" data-act="addSlot">+ ДОДАДИ ТЕРМИН</button>' + pendBlock +
-        '<section class="card stack-s"><h2 class="eyebrow muted">РАБОТНО ВРЕМЕ</h2><p class="muted small">Клиентите можат да закажуваат само во овие часови.</p>' + work.map((w, i) => '<div class="work-row"><label class="check grow"><input type="checkbox" data-change="workOn" data-day="' + i + '"' + (w.on ? ' checked' : '') + '> ' + DAY_NAMES[i] + '</label>' +
+      '<aside class="stack w-300"><button type="button" class="btn btn-accent" data-act="addSlot">+ ВНЕСИ ТЕРМИН</button>' +
+        '<section class="card stack-s"><h2 class="eyebrow muted">МОЕ РАБОТНО ВРЕМЕ</h2><p class="muted small">Од ова работно време избираш час кога внесуваш термин.</p>' + work.map((w, i) => '<div class="work-row"><label class="check grow"><input type="checkbox" data-change="workOn" data-day="' + i + '"' + (w.on ? ' checked' : '') + '> ' + DAY_NAMES[i] + '</label>' +
           (w.on ? '<select aria-label="Од" data-change="workFrom" data-day="' + i + '">' + hourOpts(6, 21, w.from) + '</select><span class="muted">–</span><select aria-label="До" data-change="workTo" data-day="' + i + '">' + hourOpts(7, 23, w.to) + '</select>' : '<span class="muted small">Слободно</span>') + '</div>').join('') + '</section>' +
         '<section class="card stack-s"><h2 class="eyebrow muted">ПРАВИЛО ЗА ОТКАЖУВАЊЕ</h2><label class="field">Клиентот може да откаже најдоцна<select data-change="cancelHours">' + [[24, '24 часа пред'], [12, '12 часа пред'], [0, 'Секогаш']].map(([v, l]) => '<option value="' + v + '"' + (s.availability.cancelHours === v ? ' selected' : '') + '>' + l + '</option>').join('') + '</select></label>' +
-        '<label class="check"><input type="checkbox" data-change="autoConfirm"' + (s.availability.autoConfirm ? ' checked' : '') + '> Автоматски потврдувај ги термините</label><label class="check"><input type="checkbox" data-change="deposit"' + (s.availability.deposit ? ' checked' : '') + '> Барај депозит при закажување</label></section>' +
-        '<section class="card note">Клиентите добиваат потсетник во апликацијата и на email пред секој термин.</section></aside></div>';
+        '<label class="check"><input type="checkbox" data-change="deposit"' + (s.availability.deposit ? ' checked' : '') + '> Барај депозит при закажување</label></section>' +
+        '<section class="card note">Клиентите добиваат известување во апликацијата за секој нов, променет или откажан термин.</section></aside></div>';
     return appLayout('trainer', 'calendar', content);
   },
   actions: {
-    autoConfirm(el) { store.set((s) => ({ ...s, availability: { ...s.availability, autoConfirm: el.checked } })); toast(el.checked ? 'Новите термини се потврдуваат автоматски.' : 'Ќе потврдуваш секој термин рачно.'); },
+    calPrev() { calWeek = Math.max(0, calWeek - 1); store.refresh(); },
+    calNext() { calWeek += 1; store.refresh(); },
     workOn(el) { setWork(Number(el.dataset.day), { on: el.checked }); },
     workFrom(el) { const d = Number(el.dataset.day); const w = store.workOf(tid())[d]; const v = Number(el.value); setWork(d, { from: v, to: Math.max(w.to, v + 1) }); },
     workTo(el) { const d = Number(el.dataset.day); const w = store.workOf(tid())[d]; const v = Number(el.value); setWork(d, { to: v, from: Math.min(w.from, v - 1) }); },
-    bkOk(el) {
-      const b = store.get().bookings.find((x) => x.id === el.dataset.val); if (!b) return;
-      store.set((st) => ({ ...st, bookings: st.bookings.map((x) => (x.id === b.id ? { ...x, status: 'confirmed' } : x)) }));
-      store.markStep('cal'); store.notify(b.clientId, 'Терминот е потврден: ' + DAY_NAMES[b.day] + ', ' + b.time, '#/c/booking'); toast('Терминот е потврден.');
-    },
-    bkNo(el) {
-      const b = store.get().bookings.find((x) => x.id === el.dataset.val); if (!b) return;
-      store.set((st) => ({ ...st, bookings: st.bookings.filter((x) => x.id !== b.id) }));
-      store.notify(b.clientId, 'Терминот (' + DAY_NAMES[b.day] + ', ' + b.time + ') не е прифатен. Избери друг час.', '#/c/booking'); toast('Терминот е одбиен, клиентот е известен.');
-    },
     cancelHours(el) { store.set((s) => ({ ...s, availability: { ...s.availability, cancelHours: Number(el.value) } })); toast('Правилото е зачувано.'); },
     deposit(el) { store.set((s) => ({ ...s, availability: { ...s.availability, deposit: el.checked } })); },
     evOpen(el) {
-      const b = store.get().bookings.find((x) => x.id === el.dataset.val);
-      modal('<h2 class="h2">' + esc(b.clientName) + '</h2><p class="muted">' + DAY_NAMES[b.day] + ', ' + b.time + ' · ' + esc(b.type.toLowerCase()) + '</p><div class="row gap"><button type="button" class="btn btn-accent" data-act="evDone" data-val="' + b.id + '">Означи како одржан</button><div class="row gap"><a class="btn btn-ghost grow" href="#/t/messages/' + b.clientId + '">Порака</a><button type="button" class="btn btn-danger grow" data-act="evCancel" data-val="' + b.id + '">Откажи термин</button></div>');
+      const b = store.get().bookings.find((x) => x.id === el.dataset.val); if (!b) return;
+      modal('<h2 class="h2">' + esc(b.clientName) + '</h2><p class="muted">' + store.dateLabel(b.date, true) + ' · ' + b.time + ' · ' + esc(b.type.toLowerCase()) + '</p><div class="stack-s"><button type="button" class="btn btn-accent" data-act="evDone" data-val="' + b.id + '">Означи како одржан</button><div class="row gap"><a class="btn btn-ghost grow" href="#/t/messages/' + b.clientId + '">Порака</a><button type="button" class="btn btn-danger grow" data-act="evCancel" data-val="' + b.id + '">Откажи термин</button></div></div>');
     },
     evDone(el) {
       const b = store.get().bookings.find((x) => x.id === el.dataset.val); if (!b) return;
@@ -290,19 +286,32 @@ export const calendar = {
       closeModal();
       toast('Терминот е одбележан како одржан.');
     },
-    evCancel(el) { store.set((s) => ({ ...s, bookings: s.bookings.filter((b) => b.id !== el.dataset.val) })); closeModal(); toast('Терминот е откажан и клиентот е известен.'); },
-    addSlot() {
-      if (!myClients().length) { toast('Прво прифати клиент за да му закажеш термин.'); return; }
-      const opts = myClients().map((c) => '<option value="' + c.id + '">' + esc(c.name) + '</option>').join('');
-      modal('<h2 class="h2">Нов термин</h2><form class="stack" data-submit="saveSlot"><label class="field">Клиент<select name="c">' + opts + '</select></label><div class="grid-2 gap-s"><label class="field">Ден<select name="d">' + DAY_NAMES.slice(0, 6).map((d, i) => '<option value="' + i + '">' + d + '</option>').join('') + '</select></label>' +
-        '<label class="field">Час<select name="t">' + SLOT_TIMES.map((t) => '<option>' + t + '</option>').join('') + '</select></label></div><label class="field">Тип<select name="type"><option>Во живо</option><option>Видео повик</option></select></label><button class="btn btn-accent" type="submit">ЗАЧУВАЈ</button></form>');
+    evCancel(el) {
+      const b = store.get().bookings.find((x) => x.id === el.dataset.val); if (!b) return;
+      store.set((s) => ({ ...s, bookings: s.bookings.filter((x) => x.id !== b.id) }));
+      store.notify(b.clientId, 'Терминот ' + store.whenLabel(b) + ' е откажан од тренерот. Договори нов во четот.', '#/c/messages/' + b.trainerId);
+      closeModal(); toast('Терминот е откажан и клиентот е известен.');
     },
+    addSlot() {
+      if (!myClients().length) { toast('Прво прифати клиент за да му внесеш термин.'); return; }
+      const opts = myClients().map((c) => '<option value="' + c.id + '">' + esc(c.name) + '</option>').join('');
+      const t = store.trainer(tid()); const types = t.type === 'online' ? ['Видео повик'] : t.type === 'live' ? ['Во живо'] : ['Во живо', 'Видео повик'];
+      let d = store.isoIn(1); for (let n = 1; n < 14 && !timesFor(d).length; n++) d = store.isoIn(n + 1);
+      modal('<h2 class="h2">Внеси термин</h2><p class="muted small">Прво договори го со клиентот во четот, потоа внеси го тука.</p><form class="stack" data-submit="saveSlot"><label class="field">Клиент<select name="c">' + opts + '</select></label>' +
+        '<div class="grid-2 gap-s"><label class="field">Датум<input type="date" name="d" value="' + d + '" min="' + store.isoIn(0) + '" max="' + store.isoIn(90) + '" data-change="slotDate"></label>' +
+        '<label class="field">Час<select name="t" id="slot-time">' + timeOpts(d) + '</select></label></div>' +
+        '<label class="field">Тип<select name="type">' + types.map((x) => '<option>' + x + '</option>').join('') + '</select></label><button class="btn btn-accent" type="submit">ЗАЧУВАЈ</button></form>');
+    },
+    slotDate(el) { const f = document.getElementById('slot-time'); if (f && el.value) f.innerHTML = timeOpts(el.value); },
     saveSlot(form) {
-      const c = clientInfo(form.c.value);
+      const c = clientInfo(form.c.value); const date = form.d.value; const time = form.t.value;
+      if (!date || !time) { toast('Избери датум и час (провери го работното време).'); return; }
+      if (store.slotTakenOn(tid(), date, time)) { toast('Тој час е веќе зафатен.'); return; }
+      const b = { id: store.uid('b'), clientId: c.id, clientName: c.name, trainerId: tid(), date, day: store.dayIdxOf(date), time, type: form.type.value, status: 'confirmed' };
       store.markStep('cal');
-      store.notify(c.id, 'Нов термин: ' + DAY_NAMES[Number(form.d.value)] + ', ' + form.t.value, '#/c/booking');
-      store.set((s) => ({ ...s, bookings: [...s.bookings, { id: store.uid('b'), clientId: c.id, clientName: c.name, trainerId: tid(), day: Number(form.d.value), time: form.t.value, type: form.type.value }] }));
-      closeModal(); toast('Терминот е додаден.');
+      store.notify(c.id, 'Договорен термин: ' + store.whenLabel(b) + ' (' + b.type.toLowerCase() + ')', '#/c/booking');
+      store.set((st) => ({ ...st, bookings: [...st.bookings, b] }));
+      closeModal(); toast('Терминот е внесен, клиентот е известен.');
     },
   },
 };
@@ -508,9 +517,9 @@ export const clientDetail = {
     const c = clientInfo(p.id);
     const pr = clientProgress(p.id);
     const s = store.get();
-    const next = s.bookings.filter((b) => b.clientId === p.id && b.trainerId === tid()).sort((a, b) => a.day - b.day)[0];
+    const next = store.upcomingBookings((b) => b.clientId === p.id && b.trainerId === tid())[0];
     const head = '<div class="page-head"><div class="row gap-s"><a class="btn btn-ghost btn-icon" href="#/t/clients" aria-label="Назад кон клиенти">←</a><span class="avatar lg accent-bg">' + initials(c.name) + '</span>' +
-      '<div><h1 class="display-s">' + esc(c.name) + '</h1><div class="muted small">' + esc(c.type || '') + ' · од ' + esc(c.since || '') + (next ? ' · следен термин ' + DAY_SHORT[next.day] + ' ' + next.time : '') + '</div></div></div></div>' +
+      '<div><h1 class="display-s">' + esc(c.name) + '</h1><div class="muted small">' + esc(c.type || '') + ' · од ' + esc(c.since || '') + (next ? ' · следен термин ' + store.whenLabel(next) : '') + '</div></div></div></div>' +
       '<div class="row gap-s wrap"><a class="btn btn-ghost btn-sm" href="#/t/messages/' + p.id + '">Порака</a><a class="btn btn-ghost btn-sm" href="#/t/plans?c=' + p.id + '">Прати план</a>' + (myFeatures().recipes ? '<a class="btn btn-ghost btn-sm" href="#/t/recipes?c=' + p.id + '">Прати рецепт</a>' : '') + '</div>';
     if (!pr.data.length || !pr.shared) {
       return appLayout('trainer', 'clients', head + '<div class="booking"><div class="stack grow"><div class="empty">' + (pr.data.length ? 'Клиентот избрал да не го споделува напредокот.' : 'Клиентот сè уште нема внесено напредок.') + '<br><button type="button" class="btn btn-accent btn-sm" style="margin-top:12px" data-act="askProgress" data-val="' + p.id + '">Замоли го да внесе напредок</button></div></div><aside class="stack w-330">' + pkgSection(p.id) + '</aside></div>');

@@ -29,7 +29,7 @@ const STEPS = {
   client: [
     ['find', 'Отвори профил на тренер', '#/', null],
     ['request', 'Испрати барање до тренер', '#/', 'client'],
-    ['book', 'Закажи термин', '#/c/booking', 'client'],
+    ['book', 'Погледни ги твоите термини', '#/c/booking', 'client'],
     ['planCheck', 'Отвори го планот и штиклирај вежба', '#/c/plan/pl1', 'client'],
     ['progress', 'Внеси напредок', '#/c/progress', 'client'],
     ['review', 'Остави оценка на тренер', '#/trainer/t1', 'client'],

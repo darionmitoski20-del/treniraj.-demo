@@ -24,7 +24,7 @@ export const home = {
     const s = store.get();
     const c = me();
     const trainers = store.clientTrainers(c.id);
-    const next = s.bookings.filter((b) => b.clientId === c.id && b.status !== 'pending').sort((a, b) => a.day - b.day || a.time.localeCompare(b.time))[0];
+    const next = store.upcomingBookings((b) => b.clientId === c.id)[0];
     const pending = s.requests.filter((r) => r.clientId === c.id && r.status === 'pending');
     const first = s.progress[0], last = s.progress[s.progress.length - 1];
     const lost = first && last ? Math.max(0, first.weight - last.weight) : 0;
@@ -32,9 +32,9 @@ export const home = {
     const ch = s.challenges.ch1;
     const nextT = next && store.trainer(next.trainerId);
     const nextCard = next
-      ? '<section class="card accent-card grow"><div class="eyebrow">СЛЕДЕН ТРЕНИНГ</div><div class="display-xs">' + DAY_NAMES[next.day] + ', ' + next.time + '</div><div class="strong">Со ' + esc(nextT.name) + ' · ' + esc(next.type.toLowerCase()) + '</div>' +
-        '<div class="row gap-s"><a class="btn btn-dark btn-sm" href="#/c/messages/' + next.trainerId + '">Отвори чет</a><a class="btn btn-outline-dark btn-sm" href="#/c/booking?t=' + next.trainerId + '">Промени термин</a></div></section>'
-      : '<section class="card accent-card grow"><div class="eyebrow">НЕМАШ ЗАКАЖАН ТРЕНИНГ</div><div class="display-xs">Закажи го следниот</div><a class="btn btn-dark btn-sm" href="#/c/booking">Закажи термин</a></section>';
+      ? '<section class="card accent-card grow"><div class="eyebrow">СЛЕДЕН ТРЕНИНГ</div><div class="display-xs">' + store.dateLabel(next.date, true) + ' · ' + next.time + '</div><div class="strong">Со ' + esc(nextT.name) + ' · ' + esc(next.type.toLowerCase()) + '</div>' +
+        '<div class="row gap-s"><a class="btn btn-dark btn-sm" href="#/c/messages/' + next.trainerId + '">Отвори чет</a><a class="btn btn-outline-dark btn-sm" href="#/c/booking">Мои термини</a></div></section>'
+      : '<section class="card accent-card grow"><div class="eyebrow">НЕМАШ ЗАКАЖАН ТРЕНИНГ</div><div class="display-xs">Договори со тренерот</div><a class="btn btn-dark btn-sm" href="#/c/messages">Отвори чет</a></section>';
     const pkgCards = trainers.map((t) => ({ t, sb: store.subFor(c.id, t.id) })).filter((x) => x.sb).map(({ t, sb }) => {
       const st = store.subState(sb);
       return '<section class="card grow stack-s' + (st === 'ok' ? '' : ' accent-line') + '"><div class="row gap"><div class="eyebrow muted grow">МОЈА ПРЕТПЛАТА · ' + esc(t.name.toUpperCase()) + '</div>' + subTag(sb) + '</div>' +
@@ -89,15 +89,15 @@ export const messages = {
     if (!trainers.length) return appLayout('client', 'messages', '<div class="empty">Сè уште немаш тренер. <a class="accent" href="#/">Најди тренер →</a></div>');
     const t = store.trainer(p.id) && store.isLinked(c.id, p.id) ? store.trainer(p.id) : trainers[0];
     const s = store.get();
-    const next = s.bookings.find((b) => b.clientId === c.id && b.trainerId === t.id);
+    const next = store.upcomingBookings((b) => b.clientId === c.id && b.trainerId === t.id)[0];
     const hasChat = !!p.id && store.isLinked(c.id, p.id);
     setCtx({ cid: c.id, tid: t.id, from: c.id, auto: t.id });
     const list = convList(trainers.map((x) => { const th = store.thread(c.id, x.id); return { id: x.id, name: x.name, sub: x.sport, last: th[th.length - 1] }; }), t.id, '#/c/messages/', c.id);
     const pr = s.progress;
     const content = '<div class="chat-layout ' + (hasChat ? 'has-chat' : 'no-chat') + '"><section class="threads"><h1 class="h2 upper">Пораки</h1>' + list + '</section>' +
-      '<section class="chat"><header class="chat-head"><a class="btn btn-ghost btn-icon chat-back" href="#/c/messages" aria-label="Назад кон разговори">←</a><span class="avatar">' + initials(t.name) + '</span><div class="grow"><div class="strong">' + esc(t.name) + '</div><div class="accent small strong">' + (next ? 'Термин: ' + DAY_NAMES[next.day] + ', ' + next.time : 'Нема закажан термин') + '</div></div>' +
-        '<a class="btn btn-ghost btn-sm" href="#/c/booking?t=' + t.id + '">Закажи</a><button type="button" class="btn btn-ghost btn-sm hide-m" data-act="reviewOpen" data-val="' + t.id + '">★ Оцени</button><button type="button" class="btn btn-accent btn-sm" data-act="videoCall">Видео повик</button></header>' +
-        pinBar({ cid: c.id, tid: t.id, goal: c.goal, next: next && next.status !== 'pending' ? DAY_NAMES[next.day] + ', ' + next.time : '', editable: false }) + '<div class="chat-body">' + chatBubbles(store.thread(c.id, t.id), c.id) + '</div>' + composer('sendMsg') + '</section>' +
+      '<section class="chat"><header class="chat-head"><a class="btn btn-ghost btn-icon chat-back" href="#/c/messages" aria-label="Назад кон разговори">←</a><span class="avatar">' + initials(t.name) + '</span><div class="grow"><div class="strong">' + esc(t.name) + '</div><div class="accent small strong">' + (next ? 'Термин: ' + store.whenLabel(next) : 'Нема закажан термин') + '</div></div>' +
+        '<a class="btn btn-ghost btn-sm" href="#/c/booking">Термини</a><button type="button" class="btn btn-ghost btn-sm hide-m" data-act="reviewOpen" data-val="' + t.id + '">★ Оцени</button><button type="button" class="btn btn-accent btn-sm" data-act="videoCall">Видео повик</button></header>' +
+        pinBar({ cid: c.id, tid: t.id, goal: c.goal, next: next ? store.whenLabel(next) : '', editable: false }) + '<div class="chat-body">' + chatBubbles(store.thread(c.id, t.id), c.id) + '</div>' + composer('sendMsg') + '</section>' +
       '<aside class="chat-side"><h2 class="h3 upper">Мој напредок</h2><div class="card"><div class="eyebrow muted">ТЕЖИНА</div><div class="display-xs">' + pr[pr.length - 1].weight.toFixed(1) + ' кг</div>' + lineChart(pr.map((x) => x.weight), { w: 280, h: 90 }) + '</div>' +
         '<div class="card"><div class="strong small">Коментар од тренерот</div><p class="muted small">' + esc(s.trainerComment) + '</p></div><a class="btn btn-accent" href="#/c/progress">+ ВНЕСИ НАПРЕДОК</a></aside></div>';
     return appLayout('client', 'messages', content, { full: true });
@@ -119,57 +119,38 @@ function activeTid(cur) {
   return cur.params.id && store.isLinked(c.id, cur.params.id) ? cur.params.id : trainers[0].id;
 }
 
-// ---------- Закажи термин ----------
-const book = { tid: null, day: 2, slot: null, type: 'Во живо' };
+// ---------- Мои термини ----------
+// Термините ги договара тренерот со клиентот во четот и ги внесува тој. Клиентот ги гледа тука.
 export const booking = {
   title: 'Термини',
-  render(p, q) {
+  mount() { store.markStep('book'); },
+  render() {
     const s = store.get(); const c = me();
     const trainers = store.clientTrainers(c.id);
     if (!trainers.length) return appLayout('client', 'booking', '<div class="empty">Прво најди тренер. <a class="accent" href="#/">Најди тренер →</a></div>');
-    if (q.t && store.isLinked(c.id, q.t) && book.tid !== q.t && !book._fromQuery) { book.tid = q.t; book._fromQuery = true; }
-    if (!book.tid || !store.isLinked(c.id, book.tid)) book.tid = trainers[0].id;
-    const t = store.trainer(book.tid);
-    const taken = (day, time) => store.slotTaken(t.id, day, time);
-    const freeCount = (d) => store.slotsFor(t.id, d).filter((tm) => !taken(d, tm)).length;
-    const days = DAY_SHORT.map((lbl, i) => { const n = Math.max(0, freeCount(i)); const on = book.day === i;
-      return '<button type="button" class="day' + (on ? ' on' : '') + (n ? '' : ' off') + '" data-act="bDay" data-val="' + i + '"' + (n ? '' : ' disabled') + '><span class="small strong">' + lbl + '</span><span class="small">' + (n ? n + ' слободни' : 'полно') + '</span></button>'; }).join('');
-    const daySlots = store.slotsFor(t.id, book.day);
-    const slots = (daySlots.length ? '' : '<p class="muted small">Тренерот не работи овој ден.</p>') + daySlots.map((tm) => { const tk = taken(book.day, tm); const on = book.slot === tm;
-      return '<button type="button" class="slot' + (on ? ' on' : '') + (tk ? ' off' : '') + '" data-act="bSlot" data-val="' + tm + '"' + (tk ? ' disabled' : '') + '>' + tm + (tk ? '<span class="small"> · зафатено</span>' : '') + '</button>'; }).join('');
-    const mine = s.bookings.filter((b) => b.clientId === c.id);
-    const types = t.type === 'online' ? ['Видео повик'] : t.type === 'live' ? ['Во живо'] : ['Во живо', 'Видео повик'];
-    if (!types.includes(book.type)) book.type = types[0];
-    const price = book.type === 'Во живо' ? t.price : Math.round((t.onlinePrice || 1500) / 4);
-    const disc = s.client.premium ? Math.round(price * 0.1) : 0;
-    const content = '<div class="page-head"><h1 class="display-s">Закажи термин</h1><label class="field-inline">Тренер<select data-change="bTrainer">' + trainers.map((x) => '<option value="' + x.id + '"' + (x.id === t.id ? ' selected' : '') + '>' + esc(x.name) + '</option>').join('') + '</select></label></div>' +
-      '<div class="booking"><div class="stack grow"><div class="days">' + days + '</div>' +
-      '<section class="card"><h2 class="eyebrow muted">СЛОБОДНИ ТЕРМИНИ · ' + DAY_NAMES[book.day].toUpperCase() + '</h2><div class="slots">' + slots + '</div></section>' +
-      '<section class="card row gap wrap"><span class="eyebrow muted grow">ТИП НА ТРЕНИНГ</span>' + chipRow(types, book.type, 'bType') + '</section>' +
-      (mine.length ? '<section class="card"><h2 class="eyebrow muted">МОИ ЗАКАЖАНИ ТЕРМИНИ</h2>' + mine.map((b) => '<div class="kv"><span>' + DAY_NAMES[b.day] + ', ' + b.time + ' · ' + esc(store.trainer(b.trainerId).name) + ' · ' + esc(b.type.toLowerCase()) + (b.status === 'pending' ? ' <span class="tag tag-outline">ЧЕКА ПОТВРДА</span>' : '') + '</span><button type="button" class="link muted" data-act="bCancel" data-val="' + b.id + '">Откажи</button></div>').join('') + '</section>' : '') + '</div>' +
-      '<aside class="stack w-330"><section class="card light"><div class="eyebrow">ТВОЈОТ ТЕРМИН</div><div class="display-xs">' + DAY_NAMES[book.day] + '<br>' + (book.slot || '—:—') + '</div><div class="strong small">' + esc(t.name) + ' · ' + esc(book.type.toLowerCase()) + '</div>' +
-        '<div class="kv dark"><span>Цена</span><span>' + (t.pricesPublic ? price + ' ден.' : 'по договор') + '</span></div>' + (disc && t.pricesPublic ? '<div class="kv dark"><span>Премиум попуст</span><span>−' + disc + ' ден.</span></div>' : '') +
-        '<button type="button" class="btn btn-dark btn-lg" data-act="bConfirm"' + (book.slot ? '' : ' disabled') + '>' + (store.autoConfirm(t.id) ? 'ПОТВРДИ ТЕРМИН' : 'ИСПРАТИ БАРАЊЕ') + '</button></section>' +
+    const mine = store.upcomingBookings((b) => b.clientId === c.id);
+    const today = store.isoIn(0);
+    const card = (b, i) => { const t = store.trainer(b.trainerId);
+      return '<section class="card stack-s' + (i === 0 ? ' accent-line' : '') + '"><div class="row gap"><div class="grow"><div class="eyebrow ' + (i === 0 ? 'accent' : 'muted') + '">' + (b.date === today ? 'ДЕНЕС' : i === 0 ? 'СЛЕДЕН ТЕРМИН' : 'ТЕРМИН') + '</div><div class="display-xs">' + store.dateLabel(b.date, true) + '</div><div class="strong">' + b.time + ' · ' + esc(b.type.toLowerCase()) + '</div></div><span class="avatar">' + initials(t.name) + '</span></div>' +
+        '<div class="muted small">Со ' + esc(t.name) + '</div>' +
+        '<div class="row gap-s wrap"><a class="btn btn-ghost btn-sm grow" href="#/c/messages/' + t.id + '">Договори промена во чет</a><button type="button" class="btn btn-ghost btn-sm" data-act="bCancel" data-val="' + b.id + '">Откажи</button></div></section>'; };
+    const list = mine.length ? mine.map(card).join('') :
+      '<section class="card stack-s"><div class="strong">Уште немаш закажан термин.</div><div class="muted small">Договори се со тренерот во четот, а тој ќе го внесе терминот тука и ќе добиеш известување.</div>' +
+      trainers.map((t) => '<a class="btn btn-accent btn-sm" href="#/c/messages/' + t.id + '">Чет со ' + esc(t.name.split(' ')[0]) + '</a>').join('') + '</section>';
+    const content = '<div class="page-head"><h1 class="display-s">Мои термини</h1></div>' +
+      '<div class="booking"><div class="stack grow">' + list + '</div>' +
+      '<aside class="stack w-330"><section class="card note"><span class="strong">Како се закажува</span><br>Термините ги договараш со тренерот во четот. Кога ќе се договорите, тој го внесува терминот и тука го гледаш со датум и час.</section>' +
         '<section class="card note"><span class="strong">Правило за откажување</span><br>Бесплатно откажување најдоцна ' + s.availability.cancelHours + ' часа пред терминот.' + (s.availability.deposit ? ' Се бара депозит.' : '') + '</section>' +
         '<section class="card note"><span class="strong">Плаќање</span><br>Се договарате директно со тренерот.</section></aside></div>';
     return appLayout('client', 'booking', content);
   },
   actions: {
-    bTrainer(el) { book.tid = el.value; book.slot = null; store.refresh(); },
-    bDay(el) { book.day = Number(el.dataset.val); book.slot = null; store.refresh(); },
-    bSlot(el) { book.slot = el.dataset.val; store.refresh(); },
-    bType(el) { book.type = el.dataset.val; store.refresh(); },
-    bConfirm() {
-      const c = me();
-      store.markStep('book');
-      if (store.slotTaken(book.tid, book.day, book.slot)) { toast('Тој термин штотуку го зафати друг клиент.'); book.slot = null; store.refresh(); return; }
-      const auto = store.autoConfirm(book.tid);
-      store.notify(book.tid, shortName(c.name) + (auto ? ' закажа термин: ' : ' бара термин: ') + DAY_NAMES[book.day] + ', ' + book.slot, '#/t/calendar');
-      store.set((s) => ({ ...s, bookings: [...s.bookings, { id: store.uid('b'), clientId: c.id, clientName: shortName(c.name), trainerId: book.tid, day: book.day, time: book.slot, type: book.type, status: auto ? 'confirmed' : 'pending' }] }));
-      toast(auto ? 'Терминот е закажан: ' + DAY_NAMES[book.day] + ', ' + book.slot + '. Ќе добиеш потсетник.' : 'Барањето е испратено. Тренерот ќе го потврди терминот.');
-      book.slot = null;
+    bCancel(el) {
+      const b = store.get().bookings.find((x) => x.id === el.dataset.val); if (!b) return;
+      store.set((st) => ({ ...st, bookings: st.bookings.filter((x) => x.id !== b.id) }));
+      store.notify(b.trainerId, shortName(me().name) + ' го откажа терминот ' + store.whenLabel(b), '#/t/calendar');
+      toast('Терминот е откажан, тренерот е известен.');
     },
-    bCancel(el) { store.set((s) => ({ ...s, bookings: s.bookings.filter((b) => b.id !== el.dataset.val) })); toast('Терминот е откажан.'); },
   },
 };
 
