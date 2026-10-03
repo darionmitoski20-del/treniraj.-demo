@@ -100,7 +100,7 @@ function render(scrollTop) {
   if (same && focusId) { const el = document.getElementById(focusId); if (el) { el.focus(); if (el.setSelectionRange && el.value) el.setSelectionRange(el.value.length, el.value.length); } }
   if (same && !scrollTop) window.scrollTo(0, y); else window.scrollTo(0, 0);
   const title = r.page.title ? (typeof r.page.title === 'function' ? r.page.title(r.params) : r.page.title) : '';
-  document.title = (title ? title + ' · ' : '') + 'Тренирај';
+  document.title = (title ? title + ' · ' : '') + 'ТренирајБе';
 }
 
 function stepsOf(s) {
@@ -152,7 +152,7 @@ function guidePanel(s) {
 }
 
 function showWelcome() {
-  modal('<div class="eyebrow accent">ДОБРЕДОЈДЕ</div><h2 class="h1">Ова е демо на Тренирај</h2>' +
+  modal('<div class="eyebrow accent">ДОБРЕДОЈДЕ</div><h2 class="h1">Ова е демо на ТренирајБе</h2>' +
     '<p class="muted">Платформа каде сите тренери во Македонија се на едно место. Клиентите наоѓаат тренер, праќаат барање, се допишуваат, закажуваат термини и го следат напредокот.</p>' +
     '<p class="muted small">Податоците се измислени и се чуваат само во твојот прелистувач. Слободно кликај сè.</p>' +
     '<div class="stack-s"><button type="button" class="btn btn-accent btn-lg" data-act="welcome" data-val="trainer">ТРЕНЕР СУМ — ПОКАЖИ МИ</button>' +

@@ -23,13 +23,13 @@ const linkActions = {
   qrOpen() { qrModal(); },
   qrDownload() {
     const t = store.trainer(tid()); const a = document.createElement('a');
-    a.href = qrPng(store.trainerLink(t), 900); a.download = 'treniraj-' + store.trainerSlug(t) + '-qr.png'; document.body.appendChild(a); a.click(); a.remove();
+    a.href = qrPng(store.trainerLink(t), 900); a.download = 'trenirajbe-' + store.trainerSlug(t) + '-qr.png'; document.body.appendChild(a); a.click(); a.remove();
     store.markStep('link'); toast('QR-кодот е симнат.');
   },
   copyLink(el) { try { navigator.clipboard.writeText(el.dataset.val); } catch (e) { /* */ } store.markStep('link'); closeModal(); toast('Линкот е копиран.'); },
   shareLink(el) {
     const t = store.trainer(tid()); const link = store.trainerLink(t); store.markStep('link');
-    if (navigator.share) { navigator.share({ title: t.name + ' на Тренирај', url: link }).catch(() => {}); return; }
+    if (navigator.share) { navigator.share({ title: t.name + ' на ТренирајБе', url: link }).catch(() => {}); return; }
     try { navigator.clipboard.writeText(link); } catch (e) { /* */ } toast('Линкот е копиран.');
   },
 };

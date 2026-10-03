@@ -22,8 +22,11 @@ export const icon = {
   menu: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>',
 };
 
+// Знак на брендот ТренирајБе: портокалов балон за разговор со бучалка. Исти облик како favicon.svg.
+export const markSvg = '<svg viewBox="0 0 100 100" aria-hidden="true" focusable="false"><rect x="8" y="12" width="84" height="60" rx="24" fill="#FF5A1F"/><path d="M26 70 L20 94 L48 70 Z" fill="#FF5A1F"/><rect x="32" y="39.5" width="36" height="5" rx="2.5" fill="#fff"/><rect x="25" y="30" width="8" height="24" rx="4" fill="#fff"/><rect x="67" y="30" width="8" height="24" rx="4" fill="#fff"/><rect x="17" y="35" width="6" height="14" rx="3" fill="#fff"/><rect x="77" y="35" width="6" height="14" rx="3" fill="#fff"/></svg>';
+
 export function logo() {
-  return '<a class="logo" href="#/">ТРЕНИРАЈ<span class="dot">●</span></a>';
+  return '<a class="logo" href="#/">' + markSvg + '<span>ТРЕНИРАЈ<b>БЕ</b></span></a>';
 }
 
 export function stars(r) { return r ? '★ ' + Number(r).toFixed(1) : 'Нов'; }
@@ -33,7 +36,7 @@ export function den(n) { return String(Math.round(n || 0)).replace(/\B(?=(\d{3})
 
 export function greeting() { const h = new Date().getHours(); return h < 12 ? 'Добро утро' : h < 18 ? 'Добар ден' : 'Добра вечер'; }
 
-export function starRow(n) { return '<span class="accent" aria-label="' + n + ' од 5">' + '★'.repeat(n) + '<span class="dimstar">' + '★'.repeat(5 - n) + '</span></span>'; }
+export function starRow(n) { return '<span class="stars" aria-label="' + n + ' од 5">' + '★'.repeat(n) + '<span class="dimstar">' + '★'.repeat(5 - n) + '</span></span>'; }
 
 export function ago(at) {
   const m = Math.round((Date.now() - at) / 60000);
@@ -162,7 +165,7 @@ export function appLayout(role, active, content, opts = {}) {
   }
   const current = nav.find(([, , k]) => k === active);
   return '<div class="app' + (opts.full ? ' app-full' : '') + '"><aside class="side"><div class="side-top">' + logo() + bell(role, unread) + '</div><nav class="side-nav" aria-label="Мени">' + items + '</nav>' + extra + '</aside>' +
-    '<div class="m-top">' + hamburger + '<span class="m-title">' + esc(current ? current[1] : 'Тренирај') + '</span>' + bell(role, unread) + '</div>' +
+    '<div class="m-top">' + hamburger + '<span class="m-title">' + esc(current ? current[1] : 'ТренирајБе') + '</span>' + bell(role, unread) + '</div>' +
     drawer(nav.map(([h, l, k]) => [h, l, k, k === 'notif' ? unread : 0]), active, who) +
     '<main class="app-main">' + content + '</main></div>';
 }

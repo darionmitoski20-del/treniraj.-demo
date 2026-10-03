@@ -4,7 +4,7 @@ import { kindLabels, kindsOf, REQ_GOALS, REQ_LEVELS, REQ_QUESTIONS, REQ_MODES, R
 import { DAY_SHORT as DAYS } from '../data.js';
 import * as store from '../store.js';
 import { SPORTS, CITIES, CHALLENGES, LEADERBOARD_OTHERS, PARTNER_CATEGORIES } from '../data.js';
-import { esc, initials, icon, publicLayout, appLayout, chipRow, photo, trainerPhoto, partnerPhoto, stars, priceLabel, typeLabel, toast, modal, closeModal } from '../ui.js';
+import { esc, initials, icon, logo, publicLayout, appLayout, chipRow, photo, trainerPhoto, partnerPhoto, stars, priceLabel, typeLabel, toast, modal, closeModal } from '../ui.js';
 import { reviewsBlock, reviewActions } from './social.js';
 
 // ---------- Почетна / пребарување ----------
@@ -93,7 +93,7 @@ export const map = {
     const L = window.L;
     const sel = store.trainer(mapSel);
     const m = L.map(el, { zoomControl: true }).setView([sel.lat, sel.lng], sel.city === 'Скопје' ? 13 : 12);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution: '© OpenStreetMap, © CARTO', maxZoom: 19 }).addTo(m);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { attribution: '© OpenStreetMap, © CARTO', maxZoom: 19 }).addTo(m);
     store.allTrainers().filter((t) => t.city !== 'Онлајн').forEach((t) => {
       const on = t.id === sel.id;
       const ic = L.divIcon({ className: '', html: '<span class="pin' + (on ? ' on' : '') + '">' + initials(t.name) + '</span>', iconSize: [40, 40], iconAnchor: [20, 40] });
@@ -268,7 +268,7 @@ export const signup = {
     const role = signupRole || (q.role === 'trainer' || q.role === 'partner' ? q.role : 'client');
     const roleBtn = (r, title, sub) => '<button type="button" class="role-btn' + (role === r ? ' on' : '') + '" data-act="signRole" data-val="' + r + '"><span class="strong">' + title + '</span><span class="small">' + sub + '</span></button>';
     return '<div class="split">' +
-      '<section class="split-visual">' + logo2() + '<div class="split-copy"><h1 class="display-s">Првиот чекор<br>е <span class="accent">најтешкиот.</span></h1><p class="lead">Направи профил за 30 секунди.</p></div>' + photo('', 'dumbbell', 'photo-fill') + '</section>' +
+      '<section class="split-visual">' + logo() + '<div class="split-copy"><h1 class="display-s">Првиот чекор<br>е <span class="accent">најтешкиот.</span></h1><p class="lead">Направи профил за 30 секунди.</p></div>' + photo('', 'dumbbell', 'photo-fill') + '</section>' +
       '<section class="split-form"><h2 class="h1">Регистрација</h2><div class="grid-3 gap-s roles">' + roleBtn('client', 'Барам тренер', 'Бесплатно') + roleBtn('trainer', 'Тренер сум', '30 дена бесплатно') + roleBtn('partner', 'Имам бизнис', 'Теретана, продавница…') + '</div>' +
       '<form class="stack" data-submit="doSignup"><input type="hidden" name="role" value="' + role + '"><input type="hidden" name="next" value="' + esc(q.next || '') + '">' +
       '<label class="field">' + (role === 'partner' ? 'Име на бизнисот' : 'Име и презиме') + '<input name="name" required autocomplete="' + (role === 'partner' ? 'organization' : 'name') + '" value="' + (role === 'trainer' ? '' : role === 'partner' ? 'Фит Зона Аеродром' : 'Ана Костова') + '"' + (role === 'trainer' ? ' placeholder="Твоето име и презиме"' : '') + '></label>' +
@@ -296,12 +296,10 @@ export const signup = {
         store.set((s) => ({ ...s, guide: { ...s.guide, seen: true, open: true, track: 'trainer' } }));
         location.hash = '#/t/setup';
       }
-      toast('Добредојде во Тренирај!');
+      toast('Добредојде во ТренирајБе!');
     },
   },
 };
-
-function logo2() { return '<a class="logo" href="#/">ТРЕНИРАЈ<span class="dot">●</span></a>'; }
 
 // ---------- Квиз ----------
 const QUIZ = [
@@ -346,7 +344,7 @@ export const quiz = {
         '<div class="grid-3 quiz-res">' + res.map((r, i) => '<a class="card match' + (i === 0 ? ' best' : '') + '" href="#/trainer/' + r.t.id + '"><span class="eyebrow ' + (i === 0 ? 'accent' : 'muted') + '">' + r.score + '% СОВПАЃАЊЕ</span><span class="strong big">' + esc(r.t.name) + '</span><span class="muted small">' + esc(r.t.sport) + ' · ' + esc(r.t.city) + ' · ' + stars(r.t.rating) + '</span></a>').join('') + '</div>' +
         '<div class="row gap center-row"><button type="button" class="btn btn-ghost" data-act="qRestart">Повтори</button><a class="btn btn-accent" href="#/">Сите тренери</a></div>';
     }
-    return '<div class="quiz"><header class="topbar">' + logo2() + '<span class="grow"></span><a class="nav-link" href="#/">Прескокни</a></header>' +
+    return '<div class="quiz"><header class="topbar">' + logo() + '<span class="grow"></span><a class="nav-link" href="#/">Прескокни</a></header>' +
       '<div class="progressbar"><div style="width:' + pct + '%"></div></div><main class="quiz-main">' + body + '</main></div>';
   },
   actions: {
@@ -380,7 +378,7 @@ export function partnersContent() {
     '<section class="featured"><div class="featured-photo">' + photo('', 'dumbbell', '', partnerPhoto(feat)) + '</div><div class="featured-body"><div class="eyebrow">ИЗДВОЕН ПАРТНЕР</div><a class="h2 upper plink" href="#/partner/' + feat.id + '">' + esc(feat.name) + '</a><div class="strong small">' + esc(feat.category) + ' · ' + esc(feat.city) + (feat.address ? ', ' + esc(feat.address) : '') + '</div></div>' +
     '<div class="featured-cta">' + (feat.offer ? '<div class="coupon"><div class="small strong">' + esc(feat.offer) + '</div></div><button type="button" class="btn btn-dark" data-act="coupon" data-val="' + feat.id + '">ПОКАЖИ КОД</button>' : '') + '<a class="btn btn-outline-dark btn-sm" href="#/partner/' + feat.id + '">ПРОФИЛ</a></div></section>' +
     (list.length ? '<div class="grid-3">' + list.map(partnerCard).join('') + '</div>' : '<div class="empty">Нема партнери во оваа категорија.</div>') + '</div>' +
-    '<aside class="stack"><section class="card light"><h2 class="h3 upper">Имаш бизнис во спортот?</h2><p class="small">Направи профил со локација, контакт и понуди. Клиентите и тренерите на Тренирај ќе те најдат.</p><div class="small strong">Месечна претплата · купоните се незадолжителни</div><a class="btn btn-dark" href="#/signup?role=partner">СТАНИ ПАРТНЕР</a></section>' +
+    '<aside class="stack"><section class="card light"><h2 class="h3 upper">Имаш бизнис во спортот?</h2><p class="small">Направи профил со локација, контакт и понуди. Клиентите и тренерите на ТренирајБе ќе те најдат.</p><div class="small strong">Месечна претплата · купоните се незадолжителни</div><a class="btn btn-dark" href="#/signup?role=partner">СТАНИ ПАРТНЕР</a></section>' +
     '<section class="card"><h2 class="eyebrow muted">ПАРТНЕРОТ ДОБИВА</h2>' + ['Профил со опис, фото и локација на мапа', 'Веб-сајт, Instagram и контакт', 'Купони за корисниците (по избор)', 'Статистика: прегледи, кликови, купони'].map((x) => '<div class="check-line"><span class="accent">✓</span>' + x + '</div>').join('') + '</section></aside></div>';
 }
 
@@ -405,7 +403,7 @@ export const partnerProfile = {
     const s = store.get();
     const content = '<div class="profile">' +
       '<aside class="profile-side"><div class="profile-photo">' + photo('ФОТО / ЛОГО', 'dumbbell', 'photo-tall', partnerPhoto(p)) + (p.featured ? '<span class="tag tag-accent profile-top">ИЗДВОЕН ПАРТНЕР</span>' : '') + '</div>' +
-        (p.offer ? '<section class="card accent-card stack-s"><div class="eyebrow">ПОНУДИ ЗА КОРИСНИЦИТЕ НА ТРЕНИРАЈ</div>' + (p.offerImage ? '<img class="offer-img" src="' + p.offerImage + '" alt="">' : '') + '<div class="display-xs">' + esc(p.offer) + '</div>' + (p.offerUntil ? '<div class="small strong">Важи до ' + p.offerUntil.split('-').reverse().join('.') + ' · еднаш по клиент</div>' : '') + '<button type="button" class="btn btn-dark" data-act="coupon" data-val="' + p.id + '">ПОКАЖИ КОД</button></section>' : '') +
+        (p.offer ? '<section class="card accent-card stack-s"><div class="eyebrow">ПОНУДИ ЗА КОРИСНИЦИТЕ НА ТРЕНИРАЈБЕ</div>' + (p.offerImage ? '<img class="offer-img" src="' + p.offerImage + '" alt="">' : '') + '<div class="display-xs">' + esc(p.offer) + '</div>' + (p.offerUntil ? '<div class="small strong">Важи до ' + p.offerUntil.split('-').reverse().join('.') + ' · еднаш по клиент</div>' : '') + '<button type="button" class="btn btn-dark" data-act="coupon" data-val="' + p.id + '">ПОКАЖИ КОД</button></section>' : '') +
         (s.role === 'partner' && s.partnerId === p.id ? '<a class="btn btn-ghost" href="#/p/profile">Уреди го профилот</a>' : '') + '</aside>' +
       '<section class="profile-main"><div class="row gap-s wrap"><span class="tag tag-light">' + esc(p.category.toUpperCase()) + '</span><span class="tag tag-outline">ПАРТНЕР</span></div>' +
         '<h1 class="display-s">' + esc(p.name) + '</h1><div class="muted">' + esc(p.city) + (p.address ? ', ' + esc(p.address) : '') + '</div>' +
@@ -425,7 +423,7 @@ export const partnerProfile = {
     if (!window.L) { el.innerHTML = '<div class="muted small pad">Мапата не можеше да се вчита.</div>'; return; }
     const L = window.L;
     const m = L.map(el, { zoomControl: false, attributionControl: true, dragging: false, scrollWheelZoom: false }).setView([p.lat, p.lng], 15);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution: '© OpenStreetMap, © CARTO', maxZoom: 19 }).addTo(m);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { attribution: '© OpenStreetMap, © CARTO', maxZoom: 19 }).addTo(m);
     L.marker([p.lat, p.lng], { icon: L.divIcon({ className: '', html: '<span class="pin on">' + initials(p.name) + '</span>', iconSize: [40, 40], iconAnchor: [20, 40] }) }).addTo(m);
   },
   actions: {},

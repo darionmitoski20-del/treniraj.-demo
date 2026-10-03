@@ -66,7 +66,7 @@ export const profile = {
           '<label class="field">Тип на понуда<select name="offerType" data-change="offerType"><option value="discount"' + (p.offerType !== 'trial' ? ' selected' : '') + '>Попуст во % (купон)</option><option value="trial"' + (p.offerType === 'trial' ? ' selected' : '') + '>Пробен ден / тренинг</option></select></label>' +
           '<div id="offer-amt"' + (p.offerType === 'trial' ? ' hidden' : '') + '>' + field('Попуст (%)', 'offerAmount', p.offerAmount, 'type="number" inputmode="numeric" min="1" max="90" placeholder="20"') + '</div>' +
           field('На што важи (по избор)', 'offerNote', p.offerNote, 'placeholder="на првиот месец членарина"') +
-          field('Код што го кажува клиентот на каса', 'code', p.code, 'placeholder="TRENIRAJ20" autocapitalize="characters"') +
+          field('Код што го кажува клиентот на каса', 'code', p.code, 'placeholder="TRENIRAJBE20" autocapitalize="characters"') +
           field('Важи до', 'offerUntil', p.offerUntil, 'type="date" min="' + store.isoIn(0) + '"') +
           '<button type="button" class="upload" data-act="pickPhoto" data-val="offer">' + (p.offerImage ? '✓ Сликата е додадена · промени' : '+ Слика за понудата') + '</button>' +
         '</div>' +
@@ -81,7 +81,7 @@ export const profile = {
     const L = window.L;
     const start = draftPin || { lat: 41.9965, lng: 21.4314 };
     const m = L.map(el, { scrollWheelZoom: false }).setView([start.lat, start.lng], draftPin ? 15 : 12);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution: '© OpenStreetMap, © CARTO', maxZoom: 19 }).addTo(m);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { attribution: '© OpenStreetMap, © CARTO', maxZoom: 19 }).addTo(m);
     const icon = L.divIcon({ className: '', html: '<span class="pin on">●</span>', iconSize: [40, 40], iconAnchor: [20, 40] });
     let marker = draftPin ? L.marker([draftPin.lat, draftPin.lng], { icon }).addTo(m) : null;
     m.on('click', (e) => {
@@ -101,7 +101,7 @@ export const profile = {
       const patch = { name: v('name') || store.partner(pid()).name, category: v('category'), desc: v('desc'), city: v('city'), address: v('address'), hours: v('hours'),
         website: v('website').replace(/^https?:\/\//, ''), instagram: v('instagram').replace(/^@/, ''), phone: v('phone'), email: v('email'),
         offerType: on ? form.offerType.value : '', offerAmount: on ? v('offerAmount') : '', offerNote: on ? v('offerNote') : '', offerUntil: on ? v('offerUntil') : '',
-        offerNotified: null, code: on ? (v('code') || 'TRENIRAJ').toUpperCase() : '' };
+        offerNotified: null, code: on ? (v('code') || 'TRENIRAJBE').toUpperCase() : '' };
       if (draftPin) { patch.lat = draftPin.lat; patch.lng = draftPin.lng; }
       store.set((s) => ({ ...s, partnerOverrides: { ...s.partnerOverrides, [s.partnerId]: { ...(s.partnerOverrides[s.partnerId] || {}), ...patch } } }));
       toast('Зачувано! Клиентите веќе ги гледаат промените.');

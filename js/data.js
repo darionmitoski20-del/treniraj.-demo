@@ -27,7 +27,7 @@ export const PARTNERS = [
   { id: 'p1', name: 'Фит Зона Аеродром', category: 'Теретани', city: 'Скопје', address: 'бул. Јане Сандански 12', hours: 'Пон–Пет 06–23 · Саб–Нед 08–20',
     website: 'fitzona.mk', instagram: 'fitzona.aerodrom', phone: '070 123 456', email: 'info@fitzona.mk',
     desc: 'Теретана од 800 м² со зона за кардио, слободни тегови и групни часови. Паркинг за членовите.',
-    offer: '−20% прв месец', code: 'TRENIRAJ20', featured: true, lat: 41.9870, lng: 21.4760 },
+    offer: '−20% прв месец', code: 'TRENIRAJBE20', featured: true, lat: 41.9870, lng: 21.4760 },
   { id: 'p2', name: 'Фан Шоп Центар', category: 'Фан шопови', city: 'Скопје', address: 'ул. Македонија 5', hours: 'Пон–Саб 09–21',
     website: 'fanshop-centar.mk', instagram: 'fanshop.centar', phone: '071 222 333', email: '',
     desc: 'Дресови, шалови и опрема за навивачи. Печатење име и број на дрес за 1 ден.', offer: '−10% на дресови', code: 'FAN10', lat: 41.9965, lng: 21.4314 },
