@@ -1,7 +1,7 @@
 // Страни за партнер (бизнис): преглед и уредување на профилот.
 import * as store from '../store.js';
 import { PARTNER_CATEGORIES, CITIES } from '../data.js';
-import { esc, initials, appLayout, toast } from '../ui.js';
+import { esc, initials, appLayout, toast, osmLayer } from '../ui.js';
 
 const pid = () => store.get().partnerId;
 const fmtUntil = (iso) => (iso ? iso.split('-').reverse().join('.') : 'без рок');
@@ -81,7 +81,7 @@ export const profile = {
     const L = window.L;
     const start = draftPin || { lat: 41.9965, lng: 21.4314 };
     const m = L.map(el, { scrollWheelZoom: false }).setView([start.lat, start.lng], draftPin ? 15 : 12);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { attribution: '© OpenStreetMap, © CARTO', maxZoom: 19 }).addTo(m);
+    osmLayer(L).addTo(m);
     const icon = L.divIcon({ className: '', html: '<span class="pin on">●</span>', iconSize: [40, 40], iconAnchor: [20, 40] });
     let marker = draftPin ? L.marker([draftPin.lat, draftPin.lng], { icon }).addTo(m) : null;
     m.on('click', (e) => {

@@ -11,7 +11,7 @@ function initialState() {
     lang: 'МК',
     client: { id: 'c1', name: 'Ана Костова', email: 'ana@primer.mk', city: 'Скопје',
       share: { goal: true, level: true, injuries: false, progress: true, photos: false },
-      goal: 'Намалување тежина', goalKg: 8, premium: false, emailReminders: true },
+      goal: 'Намалување тежина', goalKg: 8, emailReminders: true },
     trainerId: 't1',            // демо тренерот
     trainerOverrides: {},       // измени од „Мој профил“
     partnerId: 'p1',            // демо партнерот (бизнис)

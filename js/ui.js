@@ -216,9 +216,7 @@ export function appLayout(role, active, content, opts = {}) {
     extra = '<div class="side-card"><div class="eyebrow accent">ПАРТНЕР · АКТИВЕН</div><div class="muted small">Месечна претплата</div></div>';
     who = '<span class="avatar accent-bg">ФЗ</span><span><span class="strong block">Фит Зона Аеродром</span><span class="muted small">Партнер · Теретана</span></span>';
   } else {
-    extra = s.client.premium
-      ? '<div class="side-card"><div class="eyebrow accent">ПРЕМИУМ АКТИВЕН</div><div class="muted small">Пробен период: 14 дена</div></div>'
-      : '<a class="side-card light" href="#/c/settings"><div class="eyebrow">ПРЕМИУМ</div><div class="small strong">Попусти кај тренери и напредна аналитика</div></a>';
+    extra = ''; // без кутија „Премиум“ во менито на клиентот
   }
   const current = nav.find(([, , k]) => k === active);
   const title = current ? current[1] : active === 'notif' ? 'Известувања' : 'ТренирајБе';
@@ -229,6 +227,14 @@ export function appLayout(role, active, content, opts = {}) {
     '<div class="m-top">' + lead + '<span class="m-title">' + esc(title) + '</span>' + bell(role, unread) + '</div>' +
     (isClient ? '' : drawer(nav.map(([h, l, k]) => [h, l, k, k === 'notif' ? unread : 0]), active, who)) +
     '<main class="app-main">' + content + '</main>' + (isClient && !opts.noTabs ? clientTabs(active, waiting, s) : '') + '</div>';
+}
+
+// Подлога на мапите: OpenStreetMap (бесплатно, без клуч). Изворот мора да стои на мапата („© OpenStreetMap contributors“).
+export function osmLayer(L) {
+  return L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors',
+    maxZoom: 19,
+  });
 }
 
 export function chipRow(options, current, action) {

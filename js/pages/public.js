@@ -4,7 +4,7 @@ import { kindLabels, kindsOf, REQ_GOALS, REQ_LEVELS, REQ_QUESTIONS, REQ_MODES, R
 import { DAY_SHORT as DAYS } from '../data.js';
 import * as store from '../store.js';
 import { SPORTS, CITIES, CHALLENGES, LEADERBOARD_OTHERS, PARTNER_CATEGORIES } from '../data.js';
-import { esc, initials, icon, logo, publicLayout, appLayout, chipRow, photo, trainerPhoto, partnerPhoto, stars, priceLabel, typeLabel, toast, modal, closeModal } from '../ui.js';
+import { esc, initials, icon, logo, publicLayout, appLayout, chipRow, photo, trainerPhoto, partnerPhoto, stars, priceLabel, typeLabel, toast, modal, closeModal, osmLayer } from '../ui.js';
 import { reviewsBlock, reviewActions } from './social.js';
 import { items as contactItems } from '../contacts.js';
 
@@ -97,7 +97,7 @@ export const map = {
     const L = window.L;
     const sel = store.trainer(mapSel);
     const m = L.map(el, { zoomControl: true }).setView([sel.lat, sel.lng], sel.city === 'Скопје' ? 13 : 12);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { attribution: '© OpenStreetMap, © CARTO', maxZoom: 19 }).addTo(m);
+    osmLayer(L).addTo(m);
     store.allTrainers().filter((t) => t.city !== 'Онлајн').forEach((t) => {
       const on = t.id === sel.id;
       const ic = L.divIcon({ className: '', html: '<span class="pin' + (on ? ' on' : '') + '">' + initials(t.name) + '</span>', iconSize: [40, 40], iconAnchor: [20, 40] });
@@ -468,7 +468,7 @@ export const partnerProfile = {
     if (!window.L) { el.innerHTML = '<div class="muted small pad">Мапата не можеше да се вчита.</div>'; return; }
     const L = window.L;
     const m = L.map(el, { zoomControl: false, attributionControl: true, dragging: false, scrollWheelZoom: false }).setView([p.lat, p.lng], 15);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { attribution: '© OpenStreetMap, © CARTO', maxZoom: 19 }).addTo(m);
+    osmLayer(L).addTo(m);
     L.marker([p.lat, p.lng], { icon: L.divIcon({ className: '', html: '<span class="pin on">' + initials(p.name) + '</span>', iconSize: [40, 40], iconAnchor: [20, 40] }) }).addTo(m);
   },
   actions: {},

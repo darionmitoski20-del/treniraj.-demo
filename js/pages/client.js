@@ -255,9 +255,7 @@ export const settings = {
       '<form class="card row gap wrap" data-submit="saveMe"><span class="avatar lg accent-bg">' + initials(c.name) + '</span><div class="grow stack-s"><label class="field">Име и презиме<input name="name" value="' + esc(c.name) + '"></label><label class="field">Email<input name="email" type="email" value="' + esc(c.email) + '"></label></div><button class="btn btn-ghost" type="submit">Зачувај</button></form>' +
       '<section class="card"><h2 class="eyebrow muted">ШТО СПОДЕЛУВАМ СО ТРЕНЕРИТЕ</h2><p class="muted small">Ти одлучуваш. Тренерите ги гледаат само ставките што ќе ги вклучиш.</p>' +
         shares.map(([k, l]) => '<label class="toggle-row"><span class="grow">' + l + '</span><input type="checkbox" data-change="share" data-val="' + k + '"' + (c.share[k] ? ' checked' : '') + '></label>').join('') + '</section></div>' +
-      '<aside class="stack w-360"><section class="card light"><div class="row"><span class="h3 grow">ПРЕМИУМ</span><span class="tag tag-accent">' + (c.premium ? 'АКТИВЕН' : '14 ДЕНА БЕСПЛАТНО') + '</span></div>' +
-        ['Попусти кај тренерите', 'Готови програми за тренинг', 'Напредна аналитика', 'Без реклами'].map((x) => '<div class="check-line strong small">✓ ' + x + '</div>').join('') +
-        '<button type="button" class="btn btn-dark" data-act="premium">' + (c.premium ? 'ОТКАЖИ ПРЕМИУМ' : 'ПРОБАЈ ПРЕМИУМ · 250 ден./месец') + '</button></section>' +
+      '<aside class="stack w-360">' +
       '<section class="card"><h2 class="eyebrow muted">ПОСТАВКИ</h2><label class="toggle-row"><span class="grow">Јазик</span><select data-change="lang">' + ['МК', 'SQ', 'EN'].map((l) => '<option' + (s.lang === l ? ' selected' : '') + '>' + l + '</option>').join('') + '</select></label>' +
         '<label class="toggle-row"><span class="grow">Email потсетници за термини</span><input type="checkbox" data-change="reminders"' + (c.emailReminders ? ' checked' : '') + '></label>' +
         '<label class="toggle-row"><span class="grow">Боја на апликацијата</span><input type="color" value="' + s.accent + '" data-change="accent" aria-label="Боја"></label></section>' +
@@ -267,7 +265,6 @@ export const settings = {
   actions: {
     saveMe(form) { store.set((s) => ({ ...s, client: { ...s.client, name: form.name.value || s.client.name, email: form.email.value || s.client.email } })); toast('Профилот е зачуван.'); },
     share(el) { const k = el.dataset.val; store.set((s) => ({ ...s, client: { ...s.client, share: { ...s.client.share, [k]: el.checked } } })); },
-    premium() { store.set((s) => ({ ...s, client: { ...s.client, premium: !s.client.premium } })); toast(store.get().client.premium ? 'Премиум е активен — 14 дена бесплатно.' : 'Премиум е откажан.'); },
     lang(el) { store.set({ lang: el.value }); toast(el.value === 'МК' ? 'Јазик: македонски' : 'Во демото само македонскиот е преведен.'); },
     reminders(el) { store.set((s) => ({ ...s, client: { ...s.client, emailReminders: el.checked } })); },
     accent(el) { store.set({ accent: el.value }); },
