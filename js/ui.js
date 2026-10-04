@@ -151,8 +151,7 @@ export function appLayout(role, active, content, opts = {}) {
   let extra, who;
   if (role === 'trainer') {
     const tr = trainerOf(s);
-    extra = tr.founder ? '<div class="side-card"><div class="eyebrow accent">ОСНОВАЧ · −50%</div><div class="muted small">Претплата: 500 ден. / месец</div></div>'
-      : '<div class="side-card"><div class="eyebrow accent">ПРОБЕН ПЕРИОД · 30 ДЕНА</div><div class="muted small">Потоа 1.000 ден. / месец</div></div>';
+    extra = ''; // без кутија за претплата во менито на тренерот
     who = '<span class="avatar accent-bg">' + initials(tr.name) + '</span><span><span class="strong block">' + esc(tr.name) + '</span><span class="muted small">' + esc(kindLabels(tr)[0]) + (tr.founder ? ' · Основач' : '') + '</span></span>';
   } else if (role === 'partner') {
     extra = '<div class="side-card"><div class="eyebrow accent">ПАРТНЕР · АКТИВЕН</div><div class="muted small">Месечна претплата</div></div>';
