@@ -101,7 +101,7 @@ export const messages = {
         pinBar({ cid: c.id, tid: t.id, goal: c.goal, next: next ? store.whenLabel(next) : '', editable: false }) + '<div class="chat-body">' + chatBubbles(store.thread(c.id, t.id), c.id) + '</div>' + composer('sendMsg') + '</section>' +
       '<aside class="chat-side"><h2 class="h3 upper">Мој напредок</h2><div class="card"><div class="eyebrow muted">ТЕЖИНА</div><div class="display-xs">' + pr[pr.length - 1].weight.toFixed(1) + ' кг</div>' + lineChart(pr.map((x) => x.weight), { w: 280, h: 90 }) + '</div>' +
         '<div class="card"><div class="strong small">Коментар од тренерот</div><p class="muted small">' + esc(s.trainerComment) + '</p></div><a class="btn btn-accent" href="#/c/progress">+ ВНЕСИ НАПРЕДОК</a></aside></div>';
-    return appLayout('client', 'messages', content, { full: true });
+    return appLayout('client', 'messages', content, { full: true, noTabs: hasChat });
   },
   mount(root, p) { scrollChat(); messages._tid = p.id; },
   actions: {

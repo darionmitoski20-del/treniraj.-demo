@@ -356,6 +356,11 @@ export function clientTrainers(clientId) {
   return state.links.filter((l) => l.clientId === clientId).map((l) => trainer(l.trainerId)).filter(Boolean);
 }
 
+// Колку разговори чекаат одговор од клиентот (последната порака е од тренерот). Истото правило како „нова порака“ во листата на разговори.
+export function waitingThreads(clientId) {
+  return clientTrainers(clientId).filter((t) => { const th = thread(clientId, t.id); const l = th[th.length - 1]; return !!l && l.from !== clientId; }).length;
+}
+
 export function pendingRequestFrom(clientId, trainerId) {
   return state.requests.find((r) => r.clientId === clientId && r.trainerId === trainerId && ['pending', 'asked'].includes(r.status));
 }

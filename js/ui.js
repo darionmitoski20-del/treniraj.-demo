@@ -1,7 +1,7 @@
 // Помошни функции за HTML и заеднички делови од изгледот.
 import { DEMO_PHOTOS } from './photos.js';
 import { features, kindLabels } from './kinds.js';
-import { get, unreadCount, trainer } from './store.js';
+import { get, unreadCount, trainer, clientTrainers, waitingThreads } from './store.js';
 
 export function esc(v) {
   return String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -77,16 +77,21 @@ const hamburger = '<button type="button" class="burger" data-act="menuOpen" aria
 
 function homeFor(role) { return role === 'trainer' ? '#/t/home' : role === 'client' ? '#/c/home' : role === 'partner' ? '#/p/home' : '#/'; }
 
-// Мени за телефон (хамбургер): линкови + демо контроли
-function drawer(links, active, who) {
+// Демо контроли (промена на улога, водич, ресет): во менито ☰ и во „Повеќе“ на клиентот
+function demoControls() {
   const s = get();
   const roleBtn = (role, label) => '<button type="button" class="seg' + (s.role === (role || null) ? ' on' : '') + '" data-act="demoRole" data-val="' + role + '">' + label + '</button>';
+  return '<div class="eyebrow accent">ДЕМО · ГЛЕДАЈ КАКО</div><div class="segs">' + roleBtn('trainer', 'Тренер') + roleBtn('client', 'Клиент') + roleBtn('partner', 'Партнер') + roleBtn('', 'Гостин') + '</div>' +
+    '<div class="row gap-s"><button type="button" class="btn btn-ghost btn-sm grow" data-act="guideToggle">' + esc(hooks.guideLabel()) + '</button><button type="button" class="btn btn-ghost btn-sm" data-act="demoReset" aria-label="Врати ги пробните податоци">↺</button></div>';
+}
+
+// Мени за телефон (хамбургер): линкови + демо контроли
+function drawer(links, active, who) {
   return '<div class="drawer" id="drawer"><div class="drawer-back" data-act="menuClose"></div>' +
     '<nav class="drawer-panel" aria-label="Мени"><div class="drawer-head">' + logo() + '<button type="button" class="burger" data-act="menuClose" aria-label="Затвори мени">✕</button></div>' +
     (who ? '<div class="drawer-who">' + who + '</div>' : '') +
     '<div class="drawer-links">' + links.map(([href, label, key, badge]) => '<a href="' + href + '" class="drawer-link' + (active === key ? ' on' : '') + '">' + label + (badge ? '<span class="badge">' + badge + '</span>' : '') + '</a>').join('') + '</div>' +
-    '<div class="drawer-demo"><div class="eyebrow accent">ДЕМО · ГЛЕДАЈ КАКО</div><div class="segs">' + roleBtn('trainer', 'Тренер') + roleBtn('client', 'Клиент') + roleBtn('partner', 'Партнер') + roleBtn('', 'Гостин') + '</div>' +
-    '<div class="row gap-s"><button type="button" class="btn btn-ghost btn-sm grow" data-act="guideToggle">' + esc(hooks.guideLabel()) + '</button><button type="button" class="btn btn-ghost btn-sm" data-act="demoReset" aria-label="Врати ги пробните податоци">↺</button></div></div>' +
+    '<div class="drawer-demo">' + demoControls() + '</div>' +
     '</nav></div>';
 }
 
@@ -105,11 +110,18 @@ export function publicLayout(active, content) {
     '<main class="page">' + content + '</main>';
 }
 
+// Мени на клиентот. Истиот редослед и истите групи се на компјутер (странично мени) и на телефон (долна лента + „Повеќе“).
 const CLIENT_NAV = [
-  ['#/c/home', 'Мој преглед', 'home'], ['#/', 'Најди тренер', 'find'], ['#/c/messages', 'Пораки', 'messages'], ['#/c/plan', 'Мој план', 'plan'],
-  ['#/c/booking', 'Термини', 'booking'], ['#/c/payments', 'Плаќања', 'payments'], ['#/c/progress', 'Напредок', 'progress'], ['#/c/recipes', 'План за исхрана', 'recipes'],
-  ['#/c/challenges', 'Предизвици', 'challenges'], ['#/c/partners', 'Партнери', 'partners'],
-  ['#/c/settings', 'Мој профил', 'settings'],
+  ['#/c/home', 'Мој преглед', 'home'], ['#/c/plan', 'Мој план', 'plan'], ['#/c/messages', 'Пораки', 'messages'], ['#/c/booking', 'Термини', 'booking'],
+  ['#/c/progress', 'Напредок', 'progress'], ['#/c/recipes', 'План за исхрана', 'recipes'], ['#/c/challenges', 'Предизвици', 'challenges'],
+  ['#/', 'Најди тренер', 'find'], ['#/c/partners', 'Партнери', 'partners'],
+  ['#/c/payments', 'Плаќања', 'payments'], ['#/c/settings', 'Мој профил', 'settings'],
+];
+const CLIENT_GROUPS = [
+  [null, ['home', 'plan', 'messages', 'booking']],
+  ['ПРОГРЕС И ИСХРАНА', ['progress', 'recipes', 'challenges']],
+  ['ТРЕНЕРИ И ПОНУДИ', ['find', 'partners']],
+  ['СМЕТКА', ['payments', 'settings']],
 ];
 const TRAINER_NAV = [
   ['#/t/home', 'Преглед', 'home'], ['#/t/clients', 'Клиенти', 'clients'], ['#/t/payments', 'Наплата', 'payments'], ['#/t/messages', 'Пораки', 'messages'],
@@ -141,14 +153,61 @@ export function bell(role, n) {
     (n ? '<span class="badge">' + n + '</span>' : '') + '</a>';
 }
 
-// Изглед за најавен корисник: странично мени на компјутер, хамбургер мени на телефон
+// ---- Клиент на телефон: долна лента + „Повеќе“ ----
+// Иконите се 24×24, линија (боја од текстот).
+const svg24 = (d) => '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">' + d + '</svg>';
+const NAV_ICONS = {
+  home: svg24('<path d="M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>'),
+  plan: svg24('<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4h6v3H9z"/><path d="M9 14l2 2 4-4"/>'),
+  messages: svg24('<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/>'),
+  booking: svg24('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>'),
+  more: svg24('<rect x="4" y="4" width="6" height="6" rx="1.5"/><rect x="14" y="4" width="6" height="6" rx="1.5"/><rect x="4" y="14" width="6" height="6" rx="1.5"/><rect x="14" y="14" width="6" height="6" rx="1.5"/>'),
+  progress: svg24('<path d="M3 17l5-5 4 4 9-10"/><path d="M15 6h6v6"/>'),
+  recipes: svg24('<path d="M12 8c-2-3-7-2-7 3 0 5 3 10 7 10s7-5 7-10c0-5-5-6-7-3z"/><path d="M12 8c0-2 1-3 3-4"/>'),
+  payments: svg24('<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/><circle cx="16.5" cy="14.5" r="1"/>'),
+  challenges: svg24('<path d="M8 4h8v5a4 4 0 0 1-8 0z"/><path d="M8 6H4v1a3 3 0 0 0 4 3M16 6h4v1a3 3 0 0 1-4 3M12 13v4M8 21h8"/>'),
+  partners: svg24('<path d="M4 4h8l8 8-8 8-8-8z"/><circle cx="8.5" cy="8.5" r="1.2"/>'),
+  find: svg24('<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>'),
+  settings: svg24('<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/>'),
+};
+const TAB_LABEL = { home: 'Преглед', plan: 'План', messages: 'Пораки', booking: 'Термини', find: 'Тренери' };
+const navItem = (key) => CLIENT_NAV.find(([, , k]) => k === key);
+
+// Најчестото е на еден допир; останатото е под „Повеќе“.
+// Ако клиентот уште нема тренер, наместо „План“ стои „Тренери“ (а „Мој план“ оди под „Повеќе“).
+function clientTabs(active, waiting, s) {
+  const keys = clientTrainers(s.client.id).length ? ['home', 'plan', 'messages', 'booking'] : ['home', 'find', 'messages', 'booking'];
+  const tiles = CLIENT_NAV.filter(([, , k]) => !keys.includes(k) && k !== 'settings');
+  const moreOn = !keys.includes(active) && (active === 'settings' || tiles.some(([, , k]) => k === active));
+  const tab = (k) => {
+    const n = k === 'messages' ? waiting : 0;
+    return '<a class="tab' + (active === k ? ' on' : '') + '" href="' + navItem(k)[0] + '" data-act="moreClose"' + (active === k ? ' aria-current="page"' : '') +
+      (n ? ' aria-label="' + TAB_LABEL[k] + ', ' + n + (n === 1 ? ' нова порака' : ' нови пораки') + '"' : '') + '>' +
+      '<span class="tab-ic">' + NAV_ICONS[k] + (n ? '<span class="badge">' + n + '</span>' : '') + '</span>' + TAB_LABEL[k] + '</a>';
+  };
+  const tile = ([href, label, key]) => '<a class="more-tile' + (active === key ? ' on' : '') + '" href="' + href + '" data-act="moreClose"><span class="more-ic">' + NAV_ICONS[key] + '</span><span>' + label + '</span></a>';
+  return '<nav class="tabbar" aria-label="Главна навигација">' + keys.map(tab).join('') +
+    '<button type="button" class="tab tab-more' + (moreOn ? ' on' : '') + '" data-act="moreToggle" aria-haspopup="dialog" aria-expanded="false" aria-controls="more-sheet"><span class="tab-ic">' + NAV_ICONS.more + '</span>Повеќе</button></nav>' +
+    '<div class="more" id="more-sheet" role="dialog" aria-modal="true" aria-label="Повеќе"><div class="more-back" data-act="moreClose"></div><div class="more-panel" tabindex="-1"><div class="more-grab" aria-hidden="true"></div>' +
+    '<a class="more-me' + (active === 'settings' ? ' on' : '') + '" href="#/c/settings" data-act="moreClose"><span class="avatar accent-bg">' + initials(s.client.name) + '</span><span class="grow"><span class="strong block">' + esc(s.client.name) + '</span><span class="muted small">Мој профил и поставки</span></span><span class="more-go" aria-hidden="true">›</span></a>' +
+    '<div class="more-tiles">' + tiles.map(tile).join('') + '</div>' +
+    '<div class="more-demo">' + demoControls() + '</div></div></div>';
+}
+
+// Изглед за најавен корисник: странично мени на компјутер; на телефон клиентот има долна лента, тренерот и партнерот хамбургер мени.
+// opts.full — цела висина (чет); opts.back — стрелка „назад“ наместо знакот (клиент); opts.noTabs — без долна лента (на пр. кога на дното има главно копче).
 export function appLayout(role, active, content, opts = {}) {
-  const nav = role === 'trainer' ? trainerNav(get()) : role === 'partner' ? PARTNER_NAV.map(([h, l, k]) => [k === 'view' ? '#/partner/' + get().partnerId : h, l, k]) : CLIENT_NAV;
   const s = get();
+  const isClient = role === 'client';
+  const nav = role === 'trainer' ? trainerNav(s) : role === 'partner' ? PARTNER_NAV.map(([h, l, k]) => [k === 'view' ? '#/partner/' + s.partnerId : h, l, k]) : CLIENT_NAV;
   const unread = role === 'partner' ? 0 : unreadCount();
-  const items = nav.map(([href, label, key]) => '<a href="' + href + '" class="side-link' + (active === key ? ' on' : '') + '">' + label +
-    (key === 'notif' && unread ? '<span class="badge">' + unread + '</span>' : '') + '</a>').join('');
-  let extra, who;
+  const waiting = isClient ? waitingThreads(s.client.id) : 0;
+  const badge = (key) => { const n = key === 'notif' ? unread : key === 'messages' ? waiting : 0; return n ? '<span class="badge">' + n + '</span>' : ''; };
+  const sideLink = ([href, label, key]) => '<a href="' + href + '" class="side-link' + (active === key ? ' on' : '') + '">' + label + badge(key) + '</a>';
+  const items = isClient
+    ? CLIENT_GROUPS.map(([head, keys]) => (head ? '<div class="side-group">' + head + '</div>' : '') + keys.map((k) => sideLink(navItem(k))).join('')).join('')
+    : nav.map(sideLink).join('');
+  let extra, who = '';
   if (role === 'trainer') {
     const tr = trainerOf(s);
     extra = ''; // без кутија за претплата во менито на тренерот
@@ -160,13 +219,16 @@ export function appLayout(role, active, content, opts = {}) {
     extra = s.client.premium
       ? '<div class="side-card"><div class="eyebrow accent">ПРЕМИУМ АКТИВЕН</div><div class="muted small">Пробен период: 14 дена</div></div>'
       : '<a class="side-card light" href="#/c/settings"><div class="eyebrow">ПРЕМИУМ</div><div class="small strong">Попусти кај тренери и напредна аналитика</div></a>';
-    who = '<span class="avatar accent-bg">' + initials(s.client.name) + '</span><span><span class="strong block">' + esc(s.client.name) + '</span><span class="muted small">Клиент' + (s.client.premium ? ' · Премиум' : '') + '</span></span>';
   }
   const current = nav.find(([, , k]) => k === active);
+  const title = current ? current[1] : active === 'notif' ? 'Известувања' : 'ТренирајБе';
+  const lead = !isClient ? hamburger
+    : opts.back ? '<a class="burger m-back" href="' + esc(opts.back) + '" aria-label="Назад">←</a>'
+    : '<a class="m-logo" href="#/c/home" aria-label="ТренирајБе — мој преглед">' + markSvg + '</a>';
   return '<div class="app' + (opts.full ? ' app-full' : '') + '"><aside class="side"><div class="side-top">' + logo() + bell(role, unread) + '</div><nav class="side-nav" aria-label="Мени">' + items + '</nav>' + extra + '</aside>' +
-    '<div class="m-top">' + hamburger + '<span class="m-title">' + esc(current ? current[1] : 'ТренирајБе') + '</span>' + bell(role, unread) + '</div>' +
-    drawer(nav.map(([h, l, k]) => [h, l, k, k === 'notif' ? unread : 0]), active, who) +
-    '<main class="app-main">' + content + '</main></div>';
+    '<div class="m-top">' + lead + '<span class="m-title">' + esc(title) + '</span>' + bell(role, unread) + '</div>' +
+    (isClient ? '' : drawer(nav.map(([h, l, k]) => [h, l, k, k === 'notif' ? unread : 0]), active, who)) +
+    '<main class="app-main">' + content + '</main>' + (isClient && !opts.noTabs ? clientTabs(active, waiting, s) : '') + '</div>';
 }
 
 export function chipRow(options, current, action) {

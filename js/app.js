@@ -89,7 +89,7 @@ function render(scrollTop) {
   current = r;
   const focusId = document.activeElement && document.activeElement.id;
   const y = window.scrollY;
-  document.body.classList.remove('menu-open');
+  document.body.classList.remove('menu-open', 'more-open');
   root.innerHTML = r.page.render(r.params, r.query) + (r.path === '/t/setup' ? '' : guidePanel(s)) + (r.path === '/t/setup' ? '' : demoBar(s));
   document.documentElement.style.setProperty('--accent', s.accent);
   document.body.classList.toggle('guide-open', !!root.querySelector('.guide'));
@@ -185,6 +185,18 @@ function pickPhoto(el) {
   });
 }
 
+function moreBtn() { return document.querySelector('.tabbar [data-act="moreToggle"]'); }
+function openMore() {
+  document.body.classList.add('more-open');
+  const b = moreBtn(); if (b) b.setAttribute('aria-expanded', 'true');
+  const f = document.querySelector('.more-panel'); if (f) f.focus({ preventScroll: true });
+}
+function closeMore(refocus) {
+  if (!document.body.classList.contains('more-open')) return;
+  document.body.classList.remove('more-open');
+  const b = moreBtn(); if (b) { b.setAttribute('aria-expanded', 'false'); if (refocus) b.focus(); }
+}
+
 const globalActions = {
   pickPhoto,
   demoRole(el) {
@@ -196,6 +208,9 @@ const globalActions = {
   },
   menuOpen() { document.body.classList.add('menu-open'); const f = document.querySelector('.drawer-link.on') || document.querySelector('.drawer-link'); if (f) f.focus(); },
   menuClose() { document.body.classList.remove('menu-open'); },
+  // „Повеќе“ (долна лента на клиентот на телефон)
+  moreToggle() { if (document.body.classList.contains('more-open')) closeMore(); else openMore(); },
+  moreClose() { closeMore(); },
   demoReset() {
     if (confirm('Да се вратат сите пробни податоци на почеток?')) { closeModal(); store.reset(); welcomeShown = false; location.hash = '#/'; toast('Демото е ресетирано'); }
   },
@@ -252,6 +267,7 @@ document.addEventListener('submit', (ev) => {
 document.addEventListener('keydown', (ev) => {
   if (ev.key !== 'Escape') return;
   document.body.classList.remove('menu-open');
+  closeMore(true);
   const welcomeOpen = document.querySelector('#modal [data-act="welcome"]');
   closeModal();
   if (welcomeOpen) store.set((s) => ({ ...s, guide: { ...s.guide, seen: true, open: false } }));

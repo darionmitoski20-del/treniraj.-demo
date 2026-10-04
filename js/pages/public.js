@@ -36,16 +36,17 @@ export const home = {
   render() {
     const list = filterTrainers();
     const opts = (arr, cur) => ['Сите', ...arr].map((o) => '<option' + (o === cur ? ' selected' : '') + '>' + esc(o) + '</option>').join('');
+    const searchForm = '<form class="searchbar" data-submit="doSearch">' +
+        '<label>СПОРТ<select name="sport">' + opts(SPORTS, search.sport) + '</select></label>' +
+        '<label>ГРАД<select name="city">' + opts(CITIES, search.city) + '</select></label>' +
+        '<label>ТИП<select name="type">' + ['Сите', 'Онлајн', 'Во живо'].map((o) => '<option' + (o === search.type ? ' selected' : '') + '>' + o + '</option>').join('') + '</select></label>' +
+        '<button type="submit" class="btn btn-accent">' + icon.search + ' БАРАЈ</button></form>';
+    const quizLink = '<a class="quiz-link" href="#/quiz">Не си сигурен? <span class="accent">Направи квиз од 5 прашања →</span></a>';
     const hero = '<section class="hero">' +
       '<div class="hero-text"><div class="eyebrow accent line">СИТЕ ТРЕНЕРИ ВО МАКЕДОНИЈА</div>' +
       '<h1 class="display">Тренирај<br>со <span class="accent">најдобрите.</span></h1>' +
       '<p class="lead">Најди тренер, договори термин и следи го напредокот — сè на едно место.</p>' +
-      '<form class="searchbar" data-submit="doSearch">' +
-        '<label>СПОРТ<select name="sport">' + opts(SPORTS, search.sport) + '</select></label>' +
-        '<label>ГРАД<select name="city">' + opts(CITIES, search.city) + '</select></label>' +
-        '<label>ТИП<select name="type">' + ['Сите', 'Онлајн', 'Во живо'].map((o) => '<option' + (o === search.type ? ' selected' : '') + '>' + o + '</option>').join('') + '</select></label>' +
-        '<button type="submit" class="btn btn-accent">' + icon.search + ' БАРАЈ</button></form>' +
-      '<a class="quiz-link" href="#/quiz">Не си сигурен? <span class="accent">Направи квиз од 5 прашања →</span></a></div>' +
+      searchForm + quizLink + '</div>' +
       '<div class="hero-visual">' + photo('ФОТО: ТРЕНЕР ВО АКЦИЈА', 'dumbbell', 'photo-hero', ['img/hero.jpg', DEMO_PHOTOS.hero]) +
         '<div class="float-card"><span class="avatar">МС</span><span><span class="strong">Марија Стојанова</span><span class="muted-dark small">Фитнес · ★ 4.9</span></span><span class="tag tag-dark">ТРЕНЕР НА МЕСЕЦОТ</span></div>' +
         '<div class="sticker">Прв разговор бесплатно</div></div></section>';
@@ -57,6 +58,8 @@ export const home = {
       '<div class="chips">' + chipRow(['Сите', ...SPORTS], search.sport, 'chipSport') + '</div>' +
       (list.length ? '<div class="grid-4">' + list.map((t, i) => trainerCard(t, i + 1)).join('') + '</div>'
         : '<div class="empty">Нема тренери за овој избор. Пробај друг спорт или град.</div>') + '</section>';
+    // Клиентот го бара тренерот во самата апликација (со долната лента / менито), без рекламниот дел; гостинот ја гледа почетната
+    if (store.get().role === 'client') return appLayout('client', 'find', '<div class="page-head"><h1 class="display-s">Најди тренер</h1></div>' + searchForm + quizLink + results);
     return publicLayout('home', hero + ticker + results);
   },
   actions: {
@@ -192,7 +195,7 @@ export const trainerProfile = {
         contactCard(t, canPriv, isOwner) +
         reviewsBlock(t.id, linked) +
       '</section></div>';
-    return s.role === 'client' ? appLayout('client', 'find', content) : publicLayout('home', content);
+    return s.role === 'client' ? appLayout('client', 'find', content, { back: '#/', noTabs: true }) : publicLayout('home', content);
   },
   mount() { if (store.get().role !== 'trainer') store.markStep('find'); },
   actions: {
