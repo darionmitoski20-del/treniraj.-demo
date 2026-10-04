@@ -90,7 +90,6 @@ input[type=color] { padding: 2px; width: 48px; }
 .chip.on { background: var(--light); color: var(--dark); border-color: var(--light); }
 .chip.dashed { border-style: dashed; }
 .pill { display: inline-flex; align-items: center; gap: 10px; border: 1px solid var(--line2); border-radius: 999px; padding: 8px 16px 8px 8px; font-weight: 800; font-size: 14px; }
-label.pill { padding: 10px 16px; }
 .avatar { width: 44px; height: 44px; flex-shrink: 0; border-radius: 12px; background: var(--avatar); display: inline-flex; align-items: center; justify-content: center; font-weight: 900; font-size: 14px; }
 .avatar.sm { width: 34px; height: 34px; border-radius: 50%; font-size: 13px; }
 .avatar.lg { width: 72px; height: 72px; border-radius: 20px; font-family: var(--display); font-size: 24px; }
@@ -116,8 +115,8 @@ label.pill { padding: 10px 16px; }
 .stat { background: var(--card); border: 1px solid var(--line); border-radius: var(--r); padding: 16px; }
 .stat-num { font-family: var(--display); font-weight: 900; font-size: 30px; }
 .check-line { display: flex; gap: 10px; padding: 3px 0; }
-.status { font-size: 14px; font-weight: 700; color: var(--muted); display: flex; align-items: center; gap: 8px; }
-.status::before { content: ''; width: 9px; height: 9px; border-radius: 50%; background: var(--ok); }
+.status { font-size: 14px; font-weight: 700; color: var(--muted); display: flex; align-items: flex-start; gap: 8px; }
+.status::before { content: ''; flex: none; width: 9px; height: 9px; margin-top: 6px; border-radius: 50%; background: var(--ok); }
 .status.no::before { background: var(--danger); }
 .note { color: var(--muted); font-size: 14px; }
 

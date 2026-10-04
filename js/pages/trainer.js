@@ -140,8 +140,7 @@ export const home = {
       : '<div class="card light"><div class="eyebrow">СЛЕДНО ДОСТИГНУВАЊЕ</div><div class="h3 upper">Мајстор за резултати</div><div class="bar"><div style="width:' + Math.round((reached / 20) * 100) + '%"></div></div><div class="small strong">' + reached + ' од 20 клиенти ја постигнале целта · награда: 30 дена истакнување</div></div>';
     const expBlock = expiring.length ? '<div class="card"><h2 class="eyebrow muted">ПРЕТПЛАТИ ЗА ОБНОВА</h2>' + expiring.map((sb) =>
       '<a class="list-row" href="#/t/payments"><span class="avatar">' + initials(store.clientName(sb.clientId)) + '</span><span class="grow"><span class="strong">' + esc(store.clientName(sb.clientId)) + '</span><span class="muted small">' + den(sb.price) + ' ден. · ' + subText(sb) + '</span></span>' + subTag(sb) + '</a>').join('') + '<a class="link accent strong small" href="#/t/payments">Сите наплати →</a></div>' : '';
-    const content = '<div class="page-head"><h1 class="display-s">' + greeting() + ', ' + esc(t.name.split(' ')[0]) + '</h1>' +
-      '<label class="pill"><input type="checkbox" data-change="accepting"' + (t.accepting ? ' checked' : '') + '> Примам нови клиенти</label></div>' +
+    const content = '<div class="page-head"><h1 class="display-s">' + greeting() + ', ' + esc(t.name.split(' ')[0]) + '</h1></div>' +
       '<div class="grid-4"><div class="card accent-card"><div class="eyebrow">ЗАРАБОТКА / 30 ДЕНА</div><div class="display-xs">' + den(earnings) + ' ден.</div><div class="small strong">' + (unpaid ? den(unpaid) + ' ден. чекаат плаќање' : 'нема неплатени претплати') + '</div></div>' +
         '<div class="card"><div class="eyebrow muted">АКТИВНИ КЛИЕНТИ</div><div class="display-xs">' + clients.length + '</div><div class="muted small">+ ' + reqs.length + ' нови барања</div></div>' +
         '<div class="card"><div class="eyebrow muted">ТЕРМИНИ</div><div class="display-xs">' + week.length + '</div><div class="muted small">оваа недела</div></div>' +
@@ -151,7 +150,7 @@ export const home = {
         linkCard() + goalCard + (t.isNew ? '' : '<div class="card row gap"><span class="display-xs accent">#1</span><span class="small"><span class="strong">Месечна ранг листа</span><br><span class="muted">Тренер на месецот</span></span></div>') + '</section></div>';
     return appLayout('trainer', 'home', content);
   },
-  actions: { ...reqActions, ...linkActions, accepting(el) { setOverride({ accepting: el.checked }); toast(el.checked ? 'Профилот прима нови клиенти.' : 'Профилот е означен „Не прима нови“.'); } },
+  actions: { ...reqActions, ...linkActions },
 };
 
 function setOverride(patch) {
@@ -487,6 +486,15 @@ function resultsEditor(t) {
     '<p class="muted small">Додавај само слики од клиенти што ти дале дозвола. Додавањето, бришењето и прикажувањето се зачувуваат веднаш.</p></section>';
 }
 
+// Прием на нови клиенти: се менува тука (не на почетната) и се зачувува веднаш, без „Зачувај промени“.
+// Објаснувањето го следи јавниот профил (public.js): со исклучено, новиот клиент добива „листа на чекање“ наместо „испрати барање“
+function acceptingEditor(t) {
+  const on = !!t.accepting;
+  return '<section class="card stack-s"><h2 class="eyebrow muted">СТАТУС НА ПРОФИЛОТ</h2>' +
+    '<label class="toggle-row"><span class="grow">Примам нови клиенти<br><span class="muted small">Се зачувува веднаш</span></span><input type="checkbox" data-change="accepting"' + (on ? ' checked' : '') + '></label>' +
+    '<div class="status ' + (on ? 'ok' : 'no') + '">' + (on ? 'Нови клиенти можат да ти испратат барање.' : 'Нови клиенти можат само да се внесат на листа на чекање.') + '</div></section>';
+}
+
 export const profile = {
   title: 'Мој профил',
   render() {
@@ -496,7 +504,7 @@ export const profile = {
     const chk = (name, dflt) => (name in d ? !!d[name] : !!dflt);
     const curType = 'type' in d ? d.type : t.type;
     const content = '<div class="page-head"><h1 class="display-s">Мој профил</h1><a class="btn btn-ghost btn-sm" href="#/trainer/' + t.id + '">Види како клиент</a></div>' +
-      '<form class="booking" data-submit="saveProfile"><div class="stack grow"><div class="row gap"><button type="button" class="upload square" data-act="pickPhoto" data-val="trainer">' + (t.photo ? '✓<br>Смени' : '+<br>Главна фотографија') + '</button><button type="button" class="upload grow" data-act="upPhoto">▶ Видео презентација · до 60 сек.</button></div>' +
+      '<form class="booking" data-submit="saveProfile"><div class="stack grow">' + acceptingEditor(t) + '<div class="row gap"><button type="button" class="upload square" data-act="pickPhoto" data-val="trainer">' + (t.photo ? '✓<br>Смени' : '+<br>Главна фотографија') + '</button><button type="button" class="upload grow" data-act="upPhoto">▶ Видео презентација · до 60 сек.</button></div>' +
       '<section class="card grid-2 gap-s"><label class="field">Име и презиме<input name="name" value="' + val('name', t.name) + '"></label><label class="field">Локација на тренирање<input name="area" value="' + val('area', t.city + (t.area ? ', ' + t.area : '')) + '"></label>' +
         '<label class="field span-2">За мене<textarea name="bio" rows="3">' + val('bio', t.bio) + '</textarea></label>' +
         '<div class="span-2 stack-s"><span class="eyebrow muted">МОЈ ТИП НА ТРЕНЕР (го прилагодува менито и плановите)</span><div class="chips wrap-chips">' + KIND_IDS.map((k) => '<button type="button" class="chip' + (kindsOf(t).includes(k) ? ' on accent-chip' : '') + '" data-act="toggleKind" data-val="' + k + '" aria-pressed="' + kindsOf(t).includes(k) + '">' + KINDS[k].label + '</button>').join('') + '</div></div>' +
@@ -549,6 +557,11 @@ export const profile = {
       keepDraft();
       setOverride({ showResults: el.checked });
       toast(el.checked ? 'Резултатите се прикажуваат на профилот.' : 'Резултатите се скриени од профилот.');
+    },
+    accepting(el) {
+      keepDraft();
+      setOverride({ accepting: el.checked });
+      toast(el.checked ? 'Профилот прима нови клиенти.' : 'Профилот е означен „Не прима нови“.');
     },
     saveProfile(form) {
       const num = (v) => { const n = parseInt(String(v).replace(/\D/g, ''), 10); return isNaN(n) ? 0 : n; };
