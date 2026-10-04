@@ -183,6 +183,24 @@ export function toast(text) {
   el._t = setTimeout(() => { el.className = ''; }, 2600);
 }
 
+// Избор на слика од уредот: се намалува (најголема страна maxPx) и се враќа како JPEG (data URL), само за демото
+export function pickImage(maxPx, done) {
+  const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*';
+  inp.onchange = () => {
+    const f = inp.files && inp.files[0]; if (!f) return;
+    const img = new Image(); const url = URL.createObjectURL(f);
+    img.onload = () => {
+      const k = Math.min(1, maxPx / Math.max(img.width, img.height));
+      const c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url);
+      done(c.toDataURL('image/jpeg', 0.82));
+    };
+    img.onerror = () => toast('Оваа слика не може да се отвори.');
+    img.src = url;
+  };
+  inp.click();
+}
+
 export function modal(html) {
   closeModal();
   const wrap = document.createElement('div');

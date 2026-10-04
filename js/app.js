@@ -1,7 +1,7 @@
 // Главен влез: рутирање, прикажување и настани.
 import { features } from './kinds.js';
 import * as store from './store.js';
-import { closeModal, toast, modal, esc, hooks } from './ui.js';
+import { closeModal, toast, modal, esc, hooks, pickImage } from './ui.js';
 import * as pub from './pages/public.js';
 import * as client from './pages/client.js';
 import * as trainer from './pages/trainer.js';
@@ -173,28 +173,16 @@ function goStep(step) {
 // Прикачување слика: се намалува на 720px и се чува во прелистувачот (само демо)
 function pickPhoto(el) {
   const who = el.dataset.val;
-  const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*';
-  inp.onchange = () => {
-    const f = inp.files && inp.files[0]; if (!f) return;
-    const img = new Image(); const url = URL.createObjectURL(f);
-    img.onload = () => {
-      const k = Math.min(1, 720 / Math.max(img.width, img.height));
-      const c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
-      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url);
-      const data = c.toDataURL('image/jpeg', 0.82);
-      try {
-        store.set((s) => who === 'offer'
-          ? { ...s, partnerOverrides: { ...s.partnerOverrides, [s.partnerId]: { ...(s.partnerOverrides[s.partnerId] || {}), offerImage: data } } }
-          : who === 'partner'
-          ? { ...s, partnerOverrides: { ...s.partnerOverrides, [s.partnerId]: { ...(s.partnerOverrides[s.partnerId] || {}), photo: data } } }
-          : { ...s, trainerOverrides: { ...s.trainerOverrides, [s.trainerId]: { ...(s.trainerOverrides[s.trainerId] || {}), photo: data } } });
-        toast('Сликата е додадена.');
-      } catch (e) { toast('Сликата е преголема за демото.'); }
-    };
-    img.onerror = () => toast('Оваа слика не може да се отвори.');
-    img.src = url;
-  };
-  inp.click();
+  pickImage(720, (data) => {
+    try {
+      store.set((s) => who === 'offer'
+        ? { ...s, partnerOverrides: { ...s.partnerOverrides, [s.partnerId]: { ...(s.partnerOverrides[s.partnerId] || {}), offerImage: data } } }
+        : who === 'partner'
+        ? { ...s, partnerOverrides: { ...s.partnerOverrides, [s.partnerId]: { ...(s.partnerOverrides[s.partnerId] || {}), photo: data } } }
+        : { ...s, trainerOverrides: { ...s.trainerOverrides, [s.trainerId]: { ...(s.trainerOverrides[s.trainerId] || {}), photo: data } } });
+      toast('Сликата е додадена.');
+    } catch (e) { toast('Сликата е преголема за демото.'); }
+  });
 }
 
 const globalActions = {

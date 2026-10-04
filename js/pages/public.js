@@ -6,6 +6,7 @@ import * as store from '../store.js';
 import { SPORTS, CITIES, CHALLENGES, LEADERBOARD_OTHERS, PARTNER_CATEGORIES } from '../data.js';
 import { esc, initials, icon, logo, publicLayout, appLayout, chipRow, photo, trainerPhoto, partnerPhoto, stars, priceLabel, typeLabel, toast, modal, closeModal } from '../ui.js';
 import { reviewsBlock, reviewActions } from './social.js';
+import { items as contactItems } from '../contacts.js';
 
 // ---------- Почетна / пребарување ----------
 const search = { sport: 'Сите', city: 'Сите', type: 'Сите', q: '' };
@@ -118,6 +119,37 @@ export const trainerByLink = {
   },
 };
 
+// „Резултати на клиенти“ е по избор: без слики (или ако тренерот ги скрил) секцијата воопшто не се појавува
+function resultsCard(t) {
+  const list = store.shownResults(t);
+  if (!list.length) return '';
+  return '<div class="card"><h2 class="eyebrow muted">РЕЗУЛТАТИ НА КЛИЕНТИ</h2><div class="res-grid">' +
+    list.map((r, i) => (r.src
+      ? '<button type="button" class="res-tile" data-act="resultView" data-tid="' + esc(t.id) + '" data-val="' + i + '" aria-label="Зголеми го резултатот ' + (i + 1) + '"><img src="' + esc(r.src) + '" alt="Резултат на клиент ' + (i + 1) + '" loading="lazy"></button>'
+      : '<div class="res-tile">' + photo('ПРЕД/ПОТОА', 'person', 'photo-sm', '') + '</div>')).join('') +
+    '</div><p class="muted small">Објавено со дозвола од клиентите.</p></div>';
+}
+
+// „Контакт и врски“ е по избор: ако ништо не е внесено, картичката воопшто не се појавува.
+// Телефонот и е-поштата можат да се дадат само на клиентите на тренерот (onlyClients).
+function contactCard(t, canPriv, isOwner) {
+  const all = contactItems(t.contact);
+  const shown = all.filter((i) => canPriv || !i.priv);
+  const locked = all.length > shown.length;
+  if (!shown.length && !locked) return '';
+  const demo = !!(t.contact && t.contact.demo);
+  const pill = (i) => {
+    const inner = '<span class="cl-ic" aria-hidden="true">' + i.ic + '</span><span class="cl-t">' + esc(i.text) + '</span>' + (i.sub ? '<span class="cl-sub">' + esc(i.sub) + '</span>' : '');
+    return demo
+      ? '<button type="button" class="cl" data-act="contactDemo" data-val="' + esc(i.demo) + '">' + inner + '</button>'
+      : '<a class="cl" href="' + esc(i.href) + '"' + (i.href.startsWith('http') ? ' target="_blank" rel="noopener noreferrer"' : '') + '>' + inner + '</a>';
+  };
+  return '<div class="card"><h2 class="eyebrow muted">КОНТАКТ И ВРСКИ</h2>' +
+    (shown.length ? '<div class="cl-wrap">' + shown.map(pill).join('') + '</div>' : '') +
+    (locked ? '<p class="muted small">🔒 Телефонот и е-поштата ги гледаат само клиентите на тренерот. Испрати барање за да се поврзете.</p>' : '') +
+    (isOwner && t.contact && t.contact.onlyClients ? '<p class="muted small">Ти ги гледаш сите. Телефонот и е-поштата ги гледаат само твоите клиенти.</p>' : '') + '</div>';
+}
+
 export const trainerProfile = {
   title: (p) => (store.trainer(p.id) || {}).name || 'Тренер',
   render(p) {
@@ -138,6 +170,10 @@ export const trainerProfile = {
     if (t.type !== 'live' && t.onlinePrice) services.push(['Онлајн план + следење (месец)', t.pricesPublic ? t.onlinePrice + ' ден.' : 'На барање']);
     if (!services.length) services.push(['Тренинг', 'На барање']);
     services.push(['Прв разговор', '<span class="accent">Бесплатно</span>']);
+    const svc = '<div class="card"><h2 class="eyebrow muted">УСЛУГИ</h2>' + services.map(([a, b]) => '<div class="kv"><span>' + a + '</span><span class="strong">' + b + '</span></div>').join('') + '</div>';
+    const rc = resultsCard(t);
+    const isOwner = s.role === 'trainer' && s.trainerId === t.id;
+    const canPriv = !(t.contact && t.contact.onlyClients) || isOwner || linked;
     const content = '<div class="profile">' +
       '<aside class="profile-side">' + '<div class="profile-photo">' + photo('ФОТО / ВИДЕО', 'person', 'photo-tall', trainerPhoto(t)) +
         (t.monthTop ? '<span class="tag tag-accent profile-top">ТРЕНЕР НА МЕСЕЦОТ</span>' : '') +
@@ -152,8 +188,8 @@ export const trainerProfile = {
           '<div class="stat"><div class="stat-num">' + t.reviews + '</div><div class="muted small">оценки</div></div>' +
           '<div class="stat"><div class="stat-num">' + t.goalsReached + '</div><div class="muted small">постигнати цели</div></div></div>' +
         '<div class="card"><h2 class="eyebrow muted">ЗА МЕНЕ</h2><p>' + esc(t.bio) + '</p><div class="row gap-s wrap">' + t.certs.map((c) => '<span class="tag tag-outline">' + esc(c) + '</span>').join('') + '</div></div>' +
-        '<div class="grid-2"><div class="card"><h2 class="eyebrow muted">УСЛУГИ</h2>' + services.map(([a, b]) => '<div class="kv"><span>' + a + '</span><span class="strong">' + b + '</span></div>').join('') + '</div>' +
-          '<div class="card"><h2 class="eyebrow muted">РЕЗУЛТАТИ НА КЛИЕНТИ</h2><div class="grid-3 gap-s">' + [1, 2, 3].map(() => photo('ПРЕД/ПОТОА', 'person', 'photo-sm')).join('') + '</div><p class="muted small">Објавено со дозвола од клиентите.</p></div></div>' +
+        (rc ? '<div class="grid-2">' + svc + rc + '</div>' : svc) +
+        contactCard(t, canPriv, isOwner) +
         reviewsBlock(t.id, linked) +
       '</section></div>';
     return s.role === 'client' ? appLayout('client', 'find', content) : publicLayout('home', content);
@@ -161,6 +197,12 @@ export const trainerProfile = {
   mount() { if (store.get().role !== 'trainer') store.markStep('find'); },
   actions: {
     ...reviewActions,
+    resultView(el) {
+      const t = store.trainer(el.dataset.tid); const r = t && store.shownResults(t)[Number(el.dataset.val)];
+      if (!r || !r.src) return;
+      modal('<img class="res-big" src="' + esc(r.src) + '" alt="Резултат на клиент"><p class="muted small">Објавено со дозвола од клиентот.</p><button type="button" class="btn btn-ghost" data-act="closeModal">ЗАТВОРИ</button>');
+    },
+    contactDemo(el) { toast('Демо-профил: во вистинската апликација ' + el.dataset.val + '.'); },
     request(el) {
       const s = store.get();
       if (s.role !== 'client') { location.hash = '#/signup?next=' + encodeURIComponent('/trainer/' + el.dataset.val); return; }

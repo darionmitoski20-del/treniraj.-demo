@@ -157,6 +157,17 @@ export function trainer(id) {
   return t;
 }
 
+// ---- Резултати на клиенти: по избор. Се покажуваат само ако тренерот има слики и не ги скрил ----
+export const MAX_RESULTS = 6;
+export function shownResults(t) { return t && t.showResults !== false && Array.isArray(t.results) ? t.results : []; }
+export function canAddResult() { return ((trainer(state.trainerId) || {}).results || []).length < MAX_RESULTS; }
+export function addResult(src) {
+  const id = state.trainerId; const cur = (trainer(id) || {}).results || [];
+  if (cur.length >= MAX_RESULTS) return false;
+  set((s) => ({ ...s, trainerOverrides: { ...s.trainerOverrides, [id]: { ...(s.trainerOverrides[id] || {}), results: [...cur, { id: uid('rs'), src }], showResults: true } } }));
+  return true;
+}
+
 export function reviewsFor(trainerId) {
   return (state.reviews || []).filter((r) => r.trainerId === trainerId).sort((a, b) => b.at - a.at);
 }
@@ -233,7 +244,7 @@ export function allTrainers() { return [...TRAINERS, ...(state.customTrainers ||
 export function createTrainer(name) {
   const id = uid('tn');
   const t = { id, name, sport: 'Фитнес', sports: ['Фитнес'], city: 'Скопје', area: '', type: 'both', rating: 0, reviews: 0, goalsReached: 0, price: 0, onlinePrice: 0,
-    pricesPublic: true, founder: false, accepting: true, lat: 41.9965, lng: 21.4314, bio: '', certs: [], badges: [], draft: true, isNew: true };
+    pricesPublic: true, founder: false, accepting: true, lat: 41.9965, lng: 21.4314, bio: '', certs: [], badges: [], results: [], showResults: true, contact: {}, draft: true, isNew: true };
   state = { ...state, customTrainers: [...(state.customTrainers || []), t], trainerId: id, role: 'trainer' };
   save();
   return id;

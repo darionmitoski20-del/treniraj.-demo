@@ -3,24 +3,36 @@
 export const SPORTS = ['Фитнес', 'Фудбал', 'Кошарка', 'Тенис', 'Борилачки', 'Јога', 'Пливање', 'Трчање', 'Исхрана', 'Рехабилитација'];
 export const CITIES = ['Скопје', 'Битола', 'Охрид', 'Тетово', 'Куманово', 'Онлајн'];
 
+// results = слики „пред/потоа“ (по избор; во демото се празни плочки), contact = телефон и линкови (по избор).
+// Тренер без results/contact воопшто не ги добива тие делови на профилот.
 export const TRAINERS = [
   { id: 't1', name: 'Марија Стојанова', sport: 'Фитнес', sports: ['Фитнес', 'Исхрана'], city: 'Скопје', area: 'Аеродром', type: 'both', rating: 4.9, reviews: 38, goalsReached: 21, price: 900, onlinePrice: 2500, pricesPublic: true, founder: true, monthTop: true, accepting: true, lat: 41.9853, lng: 21.4700,
     bio: 'Сертифициран персонален тренер со 8 години искуство. Работам со почетници и со луѓе што сакаат да ослабат без гладување.',
-    certs: ['NASM персонален тренер', 'Нутриционист ниво 2'], badges: ['Основач', 'Тренер на месецот', 'Трансформација'] },
+    certs: ['NASM персонален тренер', 'Нутриционист ниво 2'], badges: ['Основач', 'Тренер на месецот', 'Трансформација'],
+    results: [{ id: 'd1' }, { id: 'd2' }, { id: 'd3' }],
+    contact: { phone: '070 111 222', viber: true, whatsapp: true, email: 'marija@primer.mk', instagram: 'marija.fit', facebook: 'marija.fit', website: 'marija-fit.primer.mk', demo: true } },
   { id: 't2', name: 'Бојан Петровски', sport: 'Тенис', sports: ['Тенис'], city: 'Битола', area: 'Центар', type: 'live', rating: 4.8, reviews: 24, goalsReached: 9, price: 1000, onlinePrice: 0, pricesPublic: false, founder: true, accepting: true, lat: 41.0297, lng: 21.3292,
-    bio: 'Поранешен национален репрезентативец. Тренирам деца над 18, рекреативци и натпреварувачи.', certs: ['ITF Level 2'], badges: ['Основач'] },
+    bio: 'Поранешен национален репрезентативец. Тренирам деца над 18, рекреативци и натпреварувачи.', certs: ['ITF Level 2'], badges: ['Основач'],
+    contact: { phone: '071 333 444', email: 'bojan@primer.mk', instagram: 'bojan.tenis', onlyClients: true, demo: true } },
   { id: 't3', name: 'Елена Трајковска', sport: 'Исхрана', sports: ['Исхрана'], city: 'Онлајн', area: '', type: 'online', rating: 5.0, reviews: 41, goalsReached: 30, price: 0, onlinePrice: 1800, pricesPublic: true, founder: false, accepting: true, lat: 41.9981, lng: 21.4254,
-    bio: 'Нутриционист. Правам планови за исхрана што можат да се држат и после 3 месеци.', certs: ['Дипл. нутриционист'], badges: ['Мајстор за резултати'] },
+    bio: 'Нутриционист. Правам планови за исхрана што можат да се држат и после 3 месеци.', certs: ['Дипл. нутриционист'], badges: ['Мајстор за резултати'],
+    results: [{ id: 'd1' }, { id: 'd2' }],
+    contact: { email: 'elena@primer.mk', instagram: 'elena.ishrana', website: 'elena-ishrana.primer.mk', demo: true } },
   { id: 't4', name: 'Стефан Николов', sport: 'Фитнес', sports: ['Фитнес'], city: 'Охрид', area: 'Центар', type: 'both', rating: 4.8, reviews: 19, goalsReached: 8, price: 800, onlinePrice: 2200, pricesPublic: true, founder: false, accepting: true, lat: 41.1172, lng: 20.8016,
-    bio: 'Сила и маса. Програми базирани на прогресивно оптоварување.', certs: ['ISSA'], badges: [] },
+    bio: 'Сила и маса. Програми базирани на прогресивно оптоварување.', certs: ['ISSA'], badges: [],
+    results: [{ id: 'd1' }, { id: 'd2' }, { id: 'd3' }],
+    contact: { phone: '072 555 666', whatsapp: true, instagram: 'stefan.sila', facebook: 'stefan.sila', tiktok: 'stefan.sila', demo: true } },
   { id: 't5', name: 'Горан Костовски', sport: 'Борилачки', sports: ['Борилачки'], city: 'Скопје', area: 'Карпош', type: 'live', rating: 4.7, reviews: 15, goalsReached: 6, price: 700, onlinePrice: 0, pricesPublic: true, founder: true, accepting: false, lat: 42.0045, lng: 21.3930,
     bio: 'Кик-бокс и ММА за рекреативци и натпреварувачи.', certs: ['Мајсторски појас'], badges: ['Основач'] },
   { id: 't6', name: 'Ива Ристовска', sport: 'Јога', sports: ['Јога'], city: 'Скопје', area: 'Центар', type: 'both', rating: 4.9, reviews: 27, goalsReached: 11, price: 600, onlinePrice: 1500, pricesPublic: true, founder: false, accepting: true, lat: 41.9960, lng: 21.4320,
-    bio: 'Јога за флексибилност и помалку стрес. Часови во мали групи и онлајн.', certs: ['RYT 500'], badges: [] },
+    bio: 'Јога за флексибилност и помалку стрес. Часови во мали групи и онлајн.', certs: ['RYT 500'], badges: [],
+    contact: { instagram: 'iva.joga', youtube: '@ivajoga', website: 'iva-joga.primer.mk', demo: true } },
   { id: 't7', name: 'Никола Спасов', sport: 'Трчање', sports: ['Трчање'], city: 'Скопје', area: 'Кисела Вода', type: 'online', rating: 4.6, reviews: 12, goalsReached: 7, price: 0, onlinePrice: 1600, pricesPublic: true, founder: false, accepting: true, lat: 41.9800, lng: 21.4400,
-    bio: 'Подготовки за 10 км, полумаратон и маратон.', certs: ['UESCA тренер за трчање'], badges: [] },
+    bio: 'Подготовки за 10 км, полумаратон и маратон.', certs: ['UESCA тренер за трчање'], badges: [],
+    contact: { email: 'nikola@primer.mk', instagram: 'nikola.trcanje', youtube: '@nikolatrcanje', demo: true } },
   { id: 't8', name: 'Арбен Бајрами', sport: 'Фудбал', sports: ['Фудбал'], city: 'Тетово', area: 'Центар', type: 'live', rating: 4.8, reviews: 20, goalsReached: 10, price: 700, onlinePrice: 0, pricesPublic: true, founder: true, accepting: true, lat: 42.0106, lng: 20.9715,
-    bio: 'Индивидуална техника и кондиција за фудбалери.', certs: ['UEFA B лиценца'], badges: ['Основач'] },
+    bio: 'Индивидуална техника и кондиција за фудбалери.', certs: ['UEFA B лиценца'], badges: ['Основач'],
+    contact: { phone: '075 777 888', viber: true, facebook: 'arben.futboll', demo: true } },
 ];
 
 export const PARTNERS = [

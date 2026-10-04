@@ -2,7 +2,8 @@
 import * as store from '../store.js';
 import { planKindOf, features, kindsOf, KINDS, KIND_IDS, PLAN_KINDS, ALL_TEMPLATES } from '../kinds.js';
 import { DEMO_CLIENTS, DAY_SHORT, DAY_NAMES, SPORTS, SLOT_TIMES, DEMO_PROGRESS } from '../data.js';
-import { esc, initials, appLayout, toast, modal, closeModal, chipRow, lineChart, den, greeting } from '../ui.js';
+import { esc, initials, appLayout, toast, modal, closeModal, chipRow, lineChart, den, greeting, photo, pickImage } from '../ui.js';
+import { clean, KINDS_ORDER } from '../contacts.js';
 import { chatBubbles, composer, send, scrollChat, convList, pinBar, setCtx, chatActions } from './chat.js';
 import { shortName } from './public.js';
 import { recipeActions } from './recipes.js';
@@ -443,23 +444,71 @@ export const plans = {
 };
 
 // ---------- Мој профил ----------
+// Незачуваните полиња се паметат додека страната се исцртува повторно (додавање слика, избор на тип, спорт...)
+let draft = null;
+function keepDraft() {
+  const f = document.querySelector('form[data-submit="saveProfile"]');
+  if (!f) return;
+  const d = {};
+  f.querySelectorAll('input[name], textarea[name], select[name]').forEach((el) => { d[el.name] = el.type === 'checkbox' ? el.checked : el.value; });
+  draft = d;
+}
+
+// Контакт и врски: сè е по избор, празното не се прикажува на профилот
+function contactEditor(t, val, chk) {
+  const c = t.contact || {};
+  const f = (label, k, ph, attrs = '') => '<label class="field">' + label + '<input name="c_' + k + '" value="' + val('c_' + k, c[k]) + '" placeholder="' + ph + '" ' + attrs + '></label>';
+  const box = (k, text) => '<label class="check small"><input type="checkbox" name="c_' + k + '"' + (chk('c_' + k, !!c[k]) ? ' checked' : '') + '> ' + text + '</label>';
+  return '<section class="card stack-s"><div class="row"><h2 class="eyebrow muted grow">КОНТАКТ И ВРСКИ</h2><span class="tag tag-outline">ПО ИЗБОР</span></div>' +
+    '<p class="muted small">Така клиентите можат да те најдат и надвор од апликацијата. Пополни само што сакаш: празните полиња не се прикажуваат, а ако ништо не е пополнето нема ни картичка.</p>' +
+    '<div class="grid-2 gap-s">' +
+      f('Телефон', 'phone', '07x xxx xxx', 'inputmode="tel" autocomplete="tel"') + f('Е-пошта', 'email', 'ime@primer.mk', 'inputmode="email" autocomplete="email" autocapitalize="none"') +
+      '<div class="span-2 row gap wrap">' + box('viber', 'Овој број е на Viber') + box('whatsapp', 'Овој број е на WhatsApp') + '</div>' +
+      f('Instagram', 'instagram', 'корисничко име или линк', 'autocapitalize="none" spellcheck="false"') + f('Facebook', 'facebook', 'линк до страната или профилот', 'autocapitalize="none" spellcheck="false"') +
+      f('TikTok', 'tiktok', 'корисничко име или линк', 'autocapitalize="none" spellcheck="false"') + f('YouTube', 'youtube', '@канал или линк', 'autocapitalize="none" spellcheck="false"') +
+      '<div class="span-2">' + f('Веб-страна', 'website', 'primer.mk', 'inputmode="url" autocomplete="url" autocapitalize="none" spellcheck="false"') + '</div></div>' +
+    box('onlyClients', 'Телефонот и е-поштата да ги гледаат само моите клиенти') +
+    '<p class="muted small">Instagram, Facebook, TikTok, YouTube и веб-страната се секогаш јавни. Промените се зачувуваат со „Зачувај промени“.</p></section>';
+}
+
+// Резултати на клиенти: по избор. Без слики (или ако си ги скрил) секцијата не се појавува на профилот
+function resultsEditor(t) {
+  const list = t.results || [];
+  const on = t.showResults !== false;
+  const status = !list.length ? ['idle', 'Нема слики, па секцијата не се прикажува на профилот.']
+    : on ? ['ok', 'Клиентите ја гледаат секцијата на твојот профил.'] : ['idle', 'Скриено: клиентите не ја гледаат секцијата.'];
+  return '<section class="card stack-s"><div class="row"><h2 class="eyebrow muted grow">РЕЗУЛТАТИ НА КЛИЕНТИ</h2>' +
+      (list.length ? '<label class="check small"><input type="checkbox" data-change="resultsPublic"' + (on ? ' checked' : '') + '> Прикажи јавно</label>' : '<span class="tag tag-outline">ПО ИЗБОР</span>') + '</div>' +
+    '<p class="muted small">Слики „пред/потоа“ од твои клиенти. Ако немаш слики или не сакаш да ги покажуваш, остави го празно: секцијата воопшто не се појавува.</p>' +
+    '<div class="res-grid">' + list.map((r, i) => '<div class="res-tile">' + (r.src ? '<img src="' + esc(r.src) + '" alt="Резултат ' + (i + 1) + '">' : photo('ПРЕД/ПОТОА', 'person', 'photo-sm', '')) +
+      '<button type="button" class="res-x" data-act="resultDel" data-val="' + esc(r.id) + '" aria-label="Избриши ја сликата">×</button></div>').join('') +
+      (list.length < store.MAX_RESULTS ? '<button type="button" class="res-add" data-act="addResult"><span class="res-plus">+</span>Додај слика</button>' : '') + '</div>' +
+    '<div class="status ' + status[0] + '">' + status[1] + '</div>' +
+    '<p class="muted small">Додавај само слики од клиенти што ти дале дозвола. Додавањето, бришењето и прикажувањето се зачувуваат веднаш.</p></section>';
+}
+
 export const profile = {
   title: 'Мој профил',
   render() {
     const t = store.trainer(tid());
+    const d = draft || {}; draft = null;
+    const val = (name, dflt) => esc(name in d ? d[name] : (dflt ?? ''));
+    const chk = (name, dflt) => (name in d ? !!d[name] : !!dflt);
+    const curType = 'type' in d ? d.type : t.type;
     const content = '<div class="page-head"><h1 class="display-s">Мој профил</h1><a class="btn btn-ghost btn-sm" href="#/trainer/' + t.id + '">Види како клиент</a></div>' +
       '<form class="booking" data-submit="saveProfile"><div class="stack grow"><div class="row gap"><button type="button" class="upload square" data-act="pickPhoto" data-val="trainer">' + (t.photo ? '✓<br>Смени' : '+<br>Главна фотографија') + '</button><button type="button" class="upload grow" data-act="upPhoto">▶ Видео презентација · до 60 сек.</button></div>' +
-      '<section class="card grid-2 gap-s"><label class="field">Име и презиме<input name="name" value="' + esc(t.name) + '"></label><label class="field">Локација на тренирање<input name="area" value="' + esc(t.city + (t.area ? ', ' + t.area : '')) + '"></label>' +
-        '<label class="field span-2">За мене<textarea name="bio" rows="3">' + esc(t.bio) + '</textarea></label>' +
+      '<section class="card grid-2 gap-s"><label class="field">Име и презиме<input name="name" value="' + val('name', t.name) + '"></label><label class="field">Локација на тренирање<input name="area" value="' + val('area', t.city + (t.area ? ', ' + t.area : '')) + '"></label>' +
+        '<label class="field span-2">За мене<textarea name="bio" rows="3">' + val('bio', t.bio) + '</textarea></label>' +
         '<div class="span-2 stack-s"><span class="eyebrow muted">МОЈ ТИП НА ТРЕНЕР (го прилагодува менито и плановите)</span><div class="chips wrap-chips">' + KIND_IDS.map((k) => '<button type="button" class="chip' + (kindsOf(t).includes(k) ? ' on accent-chip' : '') + '" data-act="toggleKind" data-val="' + k + '" aria-pressed="' + kindsOf(t).includes(k) + '">' + KINDS[k].label + '</button>').join('') + '</div></div>' +
         '<div class="span-2 stack-s"><span class="eyebrow muted">СПОРТОВИ</span><div class="chips">' + SPORTS.map((sp) => '<button type="button" class="chip' + (t.sports.includes(sp) ? ' on accent-chip' : '') + '" data-act="toggleSport" data-val="' + sp + '">' + sp + '</button>').join('') + '</div></div>' +
-        '<label class="field">Тип<select name="type">' + [['both', 'Онлајн и во живо'], ['live', 'Само во живо'], ['online', 'Само онлајн']].map(([v, l]) => '<option value="' + v + '"' + (t.type === v ? ' selected' : '') + '>' + l + '</option>').join('') + '</select></label></section>' +
-      '<section class="card row gap wrap"><span class="eyebrow muted grow">СЕРТИФИКАТИ</span>' + t.certs.map((c) => '<span class="tag tag-outline">' + esc(c) + '</span>').join('') + '<button type="button" class="chip dashed" data-act="upPhoto">+ Прикачи</button></section></div>' +
-      '<aside class="stack w-340"><section class="card stack-s"><h2 class="eyebrow muted">МОЈ ЛИНК И QR-КОД</h2><label class="field">Адреса на профилот<span class="row gap-s nocaps"><span class="muted small">#/u/</span><input name="slug" class="grow" value="' + esc(store.trainerSlug(t)) + '" autocapitalize="none" spellcheck="false"></span></label>' +
+        '<label class="field">Тип<select name="type">' + [['both', 'Онлајн и во живо'], ['live', 'Само во живо'], ['online', 'Само онлајн']].map(([v, l]) => '<option value="' + v + '"' + (curType === v ? ' selected' : '') + '>' + l + '</option>').join('') + '</select></label></section>' +
+      '<section class="card"><h2 class="eyebrow muted">СЕРТИФИКАТИ</h2><div class="row gap-s wrap">' + t.certs.map((c) => '<span class="tag tag-outline">' + esc(c) + '</span>').join('') + '<button type="button" class="chip dashed" data-act="upPhoto">+ Прикачи</button></div></section>' +
+      contactEditor(t, val, chk) + resultsEditor(t) + '</div>' +
+      '<aside class="stack w-340"><section class="card stack-s"><h2 class="eyebrow muted">МОЈ ЛИНК И QR-КОД</h2><label class="field">Адреса на профилот<span class="row gap-s nocaps"><span class="muted small">#/u/</span><input name="slug" class="grow" value="' + val('slug', store.trainerSlug(t)) + '" autocapitalize="none" spellcheck="false"></span></label>' +
         '<div class="code-box small">' + esc(store.trainerLink(t)) + '</div><div class="qr-box sm">' + qrSvg(store.trainerLink(t)) + '</div>' +
         '<div class="row gap-s"><button type="button" class="btn btn-accent btn-sm grow" data-act="shareLink">СПОДЕЛИ</button><button type="button" class="btn btn-ghost btn-sm grow" data-act="qrDownload">СИМНИ QR</button></div></section>' +
-        '<section class="card stack-s"><div class="row"><h2 class="eyebrow muted grow">УСЛУГИ И ЦЕНИ</h2><label class="check small"><input type="checkbox" name="pricesPublic"' + (t.pricesPublic ? ' checked' : '') + '> Прикажи јавно</label></div>' +
-        '<label class="field">Тренинг во живо (ден.)<input name="price" inputmode="numeric" value="' + (t.price || '') + '"></label><label class="field">Онлајн план, месечно (ден.)<input name="onlinePrice" inputmode="numeric" value="' + (t.onlinePrice || '') + '"></label><div class="kv"><span>Прв разговор</span><span class="accent strong">Бесплатно</span></div></section>' +
+        '<section class="card stack-s"><div class="row"><h2 class="eyebrow muted grow">УСЛУГИ И ЦЕНИ</h2><label class="check small"><input type="checkbox" name="pricesPublic"' + (chk('pricesPublic', t.pricesPublic) ? ' checked' : '') + '> Прикажи јавно</label></div>' +
+        '<label class="field">Тренинг во живо (ден.)<input name="price" inputmode="numeric" value="' + val('price', t.price || '') + '"></label><label class="field">Онлајн план, месечно (ден.)<input name="onlinePrice" inputmode="numeric" value="' + val('onlinePrice', t.onlinePrice || '') + '"></label><div class="kv"><span>Прв разговор</span><span class="accent strong">Бесплатно</span></div></section>' +
         '<section class="card light stack-s"><div class="eyebrow">ИСТАКНИ ГО ПРОФИЛОТ</div><div class="small strong">Биди прв во пребарувањето за твојот спорт и град.</div><button type="button" class="btn btn-dark btn-sm" data-act="boost">ИСТАКНИ · 7 ДЕНА</button></section>' +
         '<button type="submit" class="btn btn-accent btn-lg">ЗАЧУВАЈ ПРОМЕНИ</button></aside></form>';
     return appLayout('trainer', 'profile', content);
@@ -472,6 +521,7 @@ export const profile = {
       const t = store.trainer(tid()); const k = el.dataset.val; const cur = kindsOf(t);
       const next = cur.includes(k) ? cur.filter((x) => x !== k) : [...cur, k];
       if (!next.length) { toast('Избери барем еден тип.'); return; }
+      keepDraft();
       setOverride({ kinds: next });
       toast('Менито и плановите се прилагодени.');
     },
@@ -479,16 +529,43 @@ export const profile = {
       const t = store.trainer(tid()); const sp = el.dataset.val;
       const next = t.sports.includes(sp) ? t.sports.filter((x) => x !== sp) : [...t.sports, sp];
       if (!next.length) { toast('Избери барем еден спорт.'); return; }
+      keepDraft();
       setOverride({ sports: next, sport: next[0] });
+    },
+    addResult() {
+      if (!store.canAddResult()) { toast('Најмногу ' + store.MAX_RESULTS + ' слики. Избриши една за да додадеш нова.'); return; }
+      pickImage(640, (data) => {
+        keepDraft();
+        if (store.addResult(data)) toast('Сликата е додадена. Клиентите ја гледаат на твојот профил.');
+      });
+    },
+    resultDel(el) {
+      const t = store.trainer(tid());
+      keepDraft();
+      setOverride({ results: (t.results || []).filter((r) => r.id !== el.dataset.val) });
+      toast('Сликата е избришана.');
+    },
+    resultsPublic(el) {
+      keepDraft();
+      setOverride({ showResults: el.checked });
+      toast(el.checked ? 'Резултатите се прикажуваат на профилот.' : 'Резултатите се скриени од профилот.');
     },
     saveProfile(form) {
       const num = (v) => { const n = parseInt(String(v).replace(/\D/g, ''), 10); return isNaN(n) ? 0 : n; };
+      const contact = {};
+      for (const k of KINDS_ORDER) {
+        const r = clean(k, form['c_' + k].value);
+        if (r.err) { toast(r.err); form['c_' + k].focus(); return; }
+        if (r.v) contact[k] = r.v;
+      }
+      if (contact.phone) { if (form.c_viber.checked) contact.viber = true; if (form.c_whatsapp.checked) contact.whatsapp = true; }
+      if (form.c_onlyClients.checked) contact.onlyClients = true;
       const [city, ...area] = form.area.value.split(',');
-      store.markStep('profile');
       const slug = store.slugify(form.slug.value) || store.slugify(form.name.value);
       const clash = store.allTrainers().some((x) => x.id !== tid() && store.trainerSlug(x) === slug);
       if (clash) { toast('Таа адреса е зафатена, пробај друга.'); return; }
-      setOverride({ slug, name: form.name.value, bio: form.bio.value, type: form.type.value, pricesPublic: form.pricesPublic.checked, price: num(form.price.value), onlinePrice: num(form.onlinePrice.value), city: city.trim() || 'Скопје', area: area.join(',').trim() });
+      store.markStep('profile');
+      setOverride({ slug, name: form.name.value, bio: form.bio.value, type: form.type.value, pricesPublic: form.pricesPublic.checked, price: num(form.price.value), onlinePrice: num(form.onlinePrice.value), city: city.trim() || 'Скопје', area: area.join(',').trim(), contact });
       toast('Профилот е зачуван. Клиентите веќе ги гледаат промените.');
     },
   },
