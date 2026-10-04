@@ -106,7 +106,7 @@ export function publicLayout(active, content) {
 }
 
 const CLIENT_NAV = [
-  ['#/c/home', 'Мој преглед', 'home'], ['#/', 'Најди тренер', 'find'], ['#/c/messages', 'Пораки', 'messages'],
+  ['#/c/home', 'Мој преглед', 'home'], ['#/', 'Најди тренер', 'find'], ['#/c/messages', 'Пораки', 'messages'], ['#/c/plan', 'Мој план', 'plan'],
   ['#/c/booking', 'Термини', 'booking'], ['#/c/payments', 'Плаќања', 'payments'], ['#/c/progress', 'Напредок', 'progress'], ['#/c/recipes', 'План за исхрана', 'recipes'],
   ['#/c/challenges', 'Предизвици', 'challenges'], ['#/c/partners', 'Партнери', 'partners'],
   ['#/c/settings', 'Мој профил', 'settings'],

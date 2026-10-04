@@ -243,10 +243,19 @@ export const calendar = {
     const today = store.isoIn(0);
     const bookings = s.bookings.filter((b) => b.trainerId === tid() && dates.includes(b.date));
     const hours = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19];
+    const work = store.workOf(tid());
     const cols = dates.map((dt, i) => {
       const evs = bookings.filter((b) => b.date === dt).map((b) => { const h = parseInt(b.time, 10);
         return '<button type="button" class="ev ' + (b.type === 'Во живо' ? 'live' : 'online') + '" style="top:' + ((h - 8) * 44 + 2) + 'px" data-act="evOpen" data-val="' + b.id + '"><span class="strong">' + esc(b.clientName) + '</span><span class="small">' + b.time + '</span></button>'; }).join('');
-      return '<div class="cal-col' + (i === 6 ? ' closed' : '') + '">' + evs + '</div>';
+      // часовите надвор од „Мое работно време“ се засенчени (мрежата е 08–20)
+      const w = work[i] || { on: false, from: 8, to: 20 };
+      let off = '';
+      if (w.on) {
+        const before = Math.max(0, Math.min(hours.length, w.from - hours[0])), after = Math.max(0, Math.min(hours.length, hours[0] + hours.length - w.to));
+        if (before) off += '<i class="cal-off" style="top:0;height:' + before * 44 + 'px"></i>';
+        if (after) off += '<i class="cal-off" style="bottom:0;height:' + after * 44 + 'px"></i>';
+      }
+      return '<div class="cal-col' + (w.on ? '' : ' closed') + (i >= 5 ? ' wknd' : '') + (dt === today ? ' today' : '') + '">' + off + evs + '</div>';
     }).join('');
     const list = dates.map((dt, i) => {
       const items = bookings.filter((b) => b.date === dt).sort((a, b) => a.time.localeCompare(b.time));
@@ -254,16 +263,15 @@ export const calendar = {
       return '<section class="cal-day' + (dt === today ? ' today' : '') + '"><h3>' + store.dateLabel(dt, true).toUpperCase() + (dt === today ? ' · ДЕНЕС' : '') + '</h3>' +
         (items.length ? items.map((b) => '<button type="button" class="cal-item" data-act="evOpen" data-val="' + b.id + '"><span class="cal-time">' + b.time + '</span><span class="cal-dot' + (b.type === 'Во живо' ? '' : ' online') + '"></span><span class="grow"><span class="strong block">' + esc(b.clientName) + '</span><span class="muted small">' + esc(b.type) + '</span></span><span class="muted">›</span></button>').join('') : '<p class="muted small">Нема термини.</p>') + '</section>';
     }).join('') || '<p class="muted small pad">Нема термини оваа недела.</p>';
-    const work = store.workOf(tid());
     const hourOpts = (a, z, sel) => { let o = ''; for (let h = a; h <= z; h++) o += '<option value="' + h + '"' + (h === sel ? ' selected' : '') + '>' + String(h).padStart(2, '0') + ':00</option>'; return o; };
     const wk = store.dateLabel(dates[0]).split(', ')[1] + ' – ' + store.dateLabel(dates[6]).split(', ')[1];
     const content = '<div class="page-head"><h1 class="display-s">Календар</h1><span class="row gap-s"><button type="button" class="btn btn-ghost btn-icon" data-act="calPrev" aria-label="Претходна недела"' + (calWeek <= 0 ? ' disabled' : '') + '>‹</button><span class="muted strong">' + (calWeek === 0 ? 'Оваа недела · ' : '') + wk + '</span><button type="button" class="btn btn-ghost btn-icon" data-act="calNext" aria-label="Следна недела">›</button></span></div>' +
       '<div class="card note">Термините ги договараш со клиентот во четот, а потоа ги внесуваш тука. Клиентот добива известување.</div>' +
       '<div class="cal-list m-show">' + list + '</div>' +
-      '<div class="legend hide-m"><span><i class="lg live"></i>Во живо</span><span><i class="lg online"></i>Онлајн / видео</span><span><i class="lg closed"></i>Неработен ден</span></div>' +
+      '<div class="legend hide-m"><span><i class="lg live"></i>Во живо</span><span><i class="lg online"></i>Онлајн / видео</span><span><i class="lg closed"></i>Неработно време</span></div>' +
       '<div class="booking"><div class="cal grow hide-m"><div class="cal-head"><span></span>' + DAY_SHORT.map((d, i) => '<span class="' + (dates[i] === today ? 'accent' : '') + '">' + d + '<br><span class="small">' + store.dateLabel(dates[i]).split(', ')[1] + '</span></span>').join('') + '</div>' +
         '<div class="cal-body"><div class="cal-hours">' + hours.map((h) => '<span>' + String(h).padStart(2, '0') + '</span>').join('') + '</div>' + cols + '</div></div>' +
-      '<aside class="stack w-300"><button type="button" class="btn btn-accent" data-act="addSlot">+ ВНЕСИ ТЕРМИН</button>' +
+      '<aside class="stack w-340"><button type="button" class="btn btn-accent" data-act="addSlot">+ ВНЕСИ ТЕРМИН</button>' +
         '<section class="card stack-s"><h2 class="eyebrow muted">МОЕ РАБОТНО ВРЕМЕ</h2><p class="muted small">Од ова работно време избираш час кога внесуваш термин.</p>' + work.map((w, i) => '<div class="work-row"><label class="check grow"><input type="checkbox" data-change="workOn" data-day="' + i + '"' + (w.on ? ' checked' : '') + '> ' + DAY_NAMES[i] + '</label>' +
           (w.on ? '<select aria-label="Од" data-change="workFrom" data-day="' + i + '">' + hourOpts(6, 21, w.from) + '</select><span class="muted">–</span><select aria-label="До" data-change="workTo" data-day="' + i + '">' + hourOpts(7, 23, w.to) + '</select>' : '<span class="muted small">Слободно</span>') + '</div>').join('') + '</section>' +
         '<section class="card stack-s"><h2 class="eyebrow muted">ПРАВИЛО ЗА ОТКАЖУВАЊЕ</h2><label class="field">Клиентот може да откаже најдоцна<select data-change="cancelHours">' + [[24, '24 часа пред'], [12, '12 часа пред'], [0, 'Секогаш']].map(([v, l]) => '<option value="' + v + '"' + (s.availability.cancelHours === v ? ' selected' : '') + '>' + l + '</option>').join('') + '</select></label>' +

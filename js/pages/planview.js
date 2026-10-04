@@ -1,8 +1,28 @@
-// План за тренинг: клиентот го отвора и штиклира вежби, тренерот гледа што е одработено.
+// План: клиентот го отвора („Мој план“ во менито или од четот) и штиклира, тренерот гледа што е одработено.
 import * as store from '../store.js';
 import { DAY_NAMES } from '../data.js';
 import { esc, initials, appLayout, toast } from '../ui.js';
 import { planKindOf } from '../kinds.js';
+
+// Кој план е „активен“: започнат и недовршен, па закажан (најскор), па последниот
+export function activePlan(plans) {
+  const today = store.isoIn(0);
+  const unfinished = (p) => { const g = store.planProgress(p); return g.done < g.total; };
+  const started = plans.filter((p) => unfinished(p) && !(p.startDate && p.startDate > today));
+  if (started.length) return started[0];
+  const upcoming = plans.filter((p) => p.startDate && p.startDate > today).sort((a, b) => a.startDate.localeCompare(b.startDate));
+  return upcoming[0] || plans[0];
+}
+
+function emptyPlans() {
+  return appLayout('client', 'plan', '<div class="page-head"><h1 class="display-s">Мој план</h1></div>' +
+    '<div class="empty">Сè уште немаш план.<br><span class="small">Кога тренерот ќе ти испрати план, ќе го најдеш тука и ќе штиклираш како напредуваш.</span>' +
+    '<div class="row gap-s center-row wrap" style="margin-top:14px"><a class="btn btn-accent btn-sm" href="#/c/messages">Пораки</a><a class="btn btn-ghost btn-sm" href="#/">Најди тренер</a></div></div>');
+}
+
+// планот што е отворен кај клиентот (и кога страницата е „Мој план“ без број во адресата)
+let shownPlan = null;
+const planId = () => shownPlan || location.hash.split('?')[0].split('/').pop();
 
 function notFoundPage(role) {
   return appLayout(role, 'home', '<div class="empty">Овој план не постои или е избришан.<br><a class="btn btn-accent btn-sm" style="margin-top:12px" href="' + (role === 'trainer' ? '#/t/home' : '#/c/home') + '">Назад</a></div>');
@@ -30,21 +50,26 @@ function exerciseRow(r, dayIdx, exIdx, done, interactive, pk, pl, locked) {
 function planPage(role) {
   const interactive = role === 'client';
   return {
-    title: 'План',
+    title: interactive ? 'Мој план' : 'План',
     render(p) {
-      const pl = store.plan(p.id);
-      if (!pl) return notFoundPage(role);
       const s = store.get();
+      const mine = interactive ? store.plansFor(s.client.id) : [];
+      let pl;
+      if (interactive && !p.id) { if (!mine.length) return emptyPlans(); pl = activePlan(mine); } else pl = store.plan(p.id);
+      if (!pl) return notFoundPage(role);
       if (interactive && pl.clientId !== s.client.id) return notFoundPage(role);
+      if (interactive) shownPlan = pl.id;
       const pg = store.planProgress(pl); const pk = planKindOf(pl);
       const pct = Math.round((pg.done / Math.max(pg.total, 1)) * 100);
       const trainer = store.trainer(pl.trainerId);
-      const back = interactive ? '#/c/messages/' + pl.trainerId : '#/t/clients/' + pl.clientId;
+      const back = '#/t/clients/' + pl.clientId;
       const who = interactive ? 'од ' + esc(trainer.name) : 'за ' + esc(store.clientName(pl.clientId));
       const today = store.isoIn(0); const locked = !!(pl.startDate && pl.startDate > today);
       const sizes = pl.weekSizes && pl.weekSizes.length ? pl.weekSizes : null;
       const weekOf = (i) => { if (!sizes) return -1; let acc = 0; for (let w = 0; w < sizes.length; w++) { acc += sizes[w]; if (i < acc) return w; } return sizes.length - 1; };
       const weekStart = (w) => { if (!pl.startDate) return ''; const d = new Date(pl.startDate + 'T12:00:00'); d.setDate(d.getDate() + w * 7); return d.toISOString().slice(0, 10).split('-').reverse().join('.'); };
+      const finished = pg.done === pg.total && pg.total > 0;
+      const nextIdx = interactive && !locked && !finished ? pl.days.findIndex((d, i) => d.some((_, j) => !pl.done[i + ':' + j])) : -1;
       let lastW = -2;
       const days = pl.days.map((d, i) => {
         const dn = d.filter((_, j) => pl.done[i + ':' + j]).length;
@@ -52,21 +77,22 @@ function planPage(role) {
         if (w !== lastW && sizes) { head = '<h2 class="week-head">НЕДЕЛА ' + (w + 1) + (pl.startDate ? '<span class="muted small"> · од ' + weekStart(w) + '</span>' : '') + '</h2>'; }
         lastW = w;
         const inWeek = sizes ? i - sizes.slice(0, w).reduce((a, n) => a + n, 0) : i;
-        return head + '<section class="card stack-s"><div class="row gap"><h2 class="eyebrow muted grow">' + pk.dayWord.toUpperCase() + ' ' + (inWeek + 1) + '</h2><span class="tag ' + (dn === d.length ? 'tag-accent' : 'tag-outline') + '">' + dn + '/' + d.length + (dn === d.length ? ' ✓' : '') + '</span></div>' +
+        return head + '<section class="card stack-s' + (i === nextIdx ? ' next' : '') + '"><div class="row gap"><h2 class="eyebrow muted grow">' + pk.dayWord.toUpperCase() + ' ' + (inWeek + 1) + (i === nextIdx ? ' · СЛЕДНО' : '') + '</h2><span class="tag ' + (dn === d.length ? 'tag-accent' : 'tag-outline') + '">' + dn + '/' + d.length + (dn === d.length ? ' ✓' : '') + '</span></div>' +
           d.map((r, j) => exerciseRow(r, i, j, !!pl.done[i + ':' + j], interactive, pk, pl, locked)).join('') + '</section>';
       }).join('');
       const banner = locked ? '<section class="card accent-line"><div class="eyebrow accent">ЗАКАЖАН ПЛАН</div><div class="strong">Почнува на ' + pl.startDate.split('-').reverse().join('.') + '</div><div class="muted small">' + (interactive ? 'Можеш да го разгледаш однапред, а штиклирањето се отвора тој ден.' : 'Клиентот го гледа планот, штиклира од тој ден.') + '</div></section>' : '';
-      const finished = pg.done === pg.total && pg.total > 0;
-      const content = '<div class="page-head"><div class="row gap-s"><a class="btn btn-ghost btn-icon" href="' + back + '" aria-label="Назад">←</a><div><h1 class="display-s">' + esc(pl.name) + '</h1><div class="muted small">' + who + '</div></div></div></div>' +
+      const tabs = mine.length > 1 ? '<nav class="plan-tabs" aria-label="Мои планови">' + mine.map((x) => { const g = store.planProgress(x); const fin = g.total > 0 && g.done === g.total; const sch = x.startDate && x.startDate > today;
+        return '<a class="chip' + (x.id === pl.id ? ' on' : '') + '" href="#/c/plan/' + x.id + '"' + (x.id === pl.id ? ' aria-current="page"' : '') + '>' + esc(x.name) + '<span class="chip-n">' + (fin ? '✓' : sch ? 'закажан' : g.done + '/' + g.total) + '</span></a>'; }).join('') + '</nav>' : '';
+      const content = '<div class="page-head"><div class="row gap-s">' + (interactive ? '' : '<a class="btn btn-ghost btn-icon" href="' + back + '" aria-label="Назад">←</a>') + '<div><h1 class="display-s">' + esc(pl.name) + '</h1><div class="muted small">' + who + '</div></div></div></div>' + tabs +
         '<section class="card accent-card"><div class="eyebrow">' + (interactive ? 'ТВОЈ НАПРЕДОК' : 'ОДРАБОТЕНО') + '</div><div class="display-xs">' + pg.done + ' од ' + pg.total + ' ' + pk.item + '</div><div class="bar dark"><div style="width:' + pct + '%"></div></div>' +
         '<div class="small strong">' + (finished ? 'Планот е завршен. Браво!' : interactive ? pk.tick : 'Клиентот штиклира кога ќе заврши ставка.') + '</div></section>' +
         banner + '<div class="plan-days">' + days + '</div>' +
         (interactive ? '<div class="row gap-s wrap"><a class="btn btn-ghost" href="#/c/messages/' + pl.trainerId + '">Прашај го тренерот</a></div>' : '<div class="row gap-s wrap"><a class="btn btn-ghost" href="#/t/messages/' + pl.clientId + '">Прати порака</a><a class="btn btn-ghost" href="#/t/clients/' + pl.clientId + '">Напредок на клиентот</a></div>');
-      return appLayout(role, interactive ? 'messages' : 'clients', content);
+      return appLayout(role, interactive ? 'plan' : 'clients', content);
     },
     actions: interactive ? {
       exMedia(el) {
-        const id = location.hash.split('/').pop().split('?')[0];
+        const id = planId();
         const pl = store.plan(id); if (!pl) return; const key = el.dataset.val;
         const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*,video/*';
         const save = (m) => {
@@ -92,11 +118,11 @@ function planPage(role) {
         inp.click();
       },
       exMediaDel(el) {
-        const id = location.hash.split('/').pop().split('?')[0]; const key = el.dataset.val;
+        const id = planId(); const key = el.dataset.val;
         store.set((st) => ({ ...st, sentPlans: st.sentPlans.map((x) => { if (x.id !== id) return x; const m = { ...(x.media || {}) }; delete m[key]; return { ...x, media: m }; }) }));
       },
       toggleEx(el) {
-        const id = location.hash.split('/').pop().split('?')[0];
+        const id = planId();
         const pl = store.plan(id); if (!pl) return;
         if (pl.startDate && pl.startDate > store.isoIn(0)) { toast('Планот почнува на ' + pl.startDate.split('-').reverse().join('.') + '. Тогаш се отвора штиклирањето.'); return; }
         const key = el.dataset.val; const [di] = key.split(':').map(Number);

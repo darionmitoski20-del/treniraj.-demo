@@ -30,7 +30,7 @@ const STEPS = {
     ['find', 'Отвори профил на тренер', '#/', null],
     ['request', 'Испрати барање до тренер', '#/', 'client'],
     ['book', 'Погледни ги твоите термини', '#/c/booking', 'client'],
-    ['planCheck', 'Отвори го планот и штиклирај вежба', '#/c/plan/pl1', 'client'],
+    ['planCheck', 'Отвори „Мој план“ и штиклирај вежба', '#/c/plan', 'client'],
     ['progress', 'Внеси напредок', '#/c/progress', 'client'],
     ['review', 'Остави оценка на тренер', '#/trainer/t1', 'client'],
   ],
@@ -50,7 +50,7 @@ const routes = [
   ['/c/notifications', social.clientNotifications, 'client'],
   ['/p/home', partner.home, 'partner'], ['/p/profile', partner.profile, 'partner'],
   ['/t/recipes', recipes.trainerRecipes, 'trainer'], ['/c/recipes', recipes.clientRecipes, 'client'],
-  ['/c/plan/:id', planview.clientPlan, 'client'], ['/t/plan/:id', planview.trainerPlan, 'trainer'], ['/t/setup', setup.setup, 'trainer'],
+  ['/c/plan', planview.clientPlan, 'client'], ['/c/plan/:id', planview.clientPlan, 'client'], ['/t/plan/:id', planview.trainerPlan, 'trainer'], ['/t/setup', setup.setup, 'trainer'],
 ];
 
 let current = null;
@@ -206,7 +206,7 @@ const globalActions = {
     closeModal();
     location.hash = role === 'trainer' ? '#/t/home' : role === 'client' ? '#/c/home' : role === 'partner' ? '#/p/home' : '#/';
   },
-  menuOpen() { document.body.classList.add('menu-open'); const f = document.querySelector('.drawer-link.on, .drawer-link'); if (f) f.focus(); },
+  menuOpen() { document.body.classList.add('menu-open'); const f = document.querySelector('.drawer-link.on') || document.querySelector('.drawer-link'); if (f) f.focus(); },
   menuClose() { document.body.classList.remove('menu-open'); },
   demoReset() {
     if (confirm('Да се вратат сите пробни податоци на почеток?')) { closeModal(); store.reset(); welcomeShown = false; location.hash = '#/'; toast('Демото е ресетирано'); }
