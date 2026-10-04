@@ -1,7 +1,7 @@
 // Помошни функции за HTML и заеднички делови од изгледот.
 import { DEMO_PHOTOS } from './photos.js';
 import { features, kindLabels } from './kinds.js';
-import { get, unreadCount, trainer, clientTrainers, waitingThreads } from './store.js';
+import { get, unreadCount, trainer, clientTrainers, waitingThreads, trainerWaitingThreads, pendingRequestCount, partner as partnerOf } from './store.js';
 
 export function esc(v) {
   return String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -77,7 +77,7 @@ const hamburger = '<button type="button" class="burger" data-act="menuOpen" aria
 
 function homeFor(role) { return role === 'trainer' ? '#/t/home' : role === 'client' ? '#/c/home' : role === 'partner' ? '#/p/home' : '#/'; }
 
-// Демо контроли (промена на улога, водич, ресет): во менито ☰ и во „Повеќе“ на клиентот
+// Демо контроли (промена на улога, водич, ресет): во „Повеќе“ (клиент, тренер, партнер) и во менито ☰ на јавните страни
 function demoControls() {
   const s = get();
   const roleBtn = (role, label) => '<button type="button" class="seg' + (s.role === (role || null) ? ' on' : '') + '" data-act="demoRole" data-val="' + role + '">' + label + '</button>';
@@ -85,11 +85,10 @@ function demoControls() {
     '<div class="row gap-s"><button type="button" class="btn btn-ghost btn-sm grow" data-act="guideToggle">' + esc(hooks.guideLabel()) + '</button><button type="button" class="btn btn-ghost btn-sm" data-act="demoReset" aria-label="Врати ги пробните податоци">↺</button></div>';
 }
 
-// Мени за телефон (хамбургер): линкови + демо контроли
-function drawer(links, active, who) {
+// Мени за телефон (хамбургер) на јавните страни: линкови + демо контроли
+function drawer(links, active) {
   return '<div class="drawer" id="drawer"><div class="drawer-back" data-act="menuClose"></div>' +
     '<nav class="drawer-panel" aria-label="Мени"><div class="drawer-head">' + logo() + '<button type="button" class="burger" data-act="menuClose" aria-label="Затвори мени">✕</button></div>' +
-    (who ? '<div class="drawer-who">' + who + '</div>' : '') +
     '<div class="drawer-links">' + links.map(([href, label, key, badge]) => '<a href="' + href + '" class="drawer-link' + (active === key ? ' on' : '') + '">' + label + (badge ? '<span class="badge">' + badge + '</span>' : '') + '</a>').join('') + '</div>' +
     '<div class="drawer-demo">' + demoControls() + '</div>' +
     '</nav></div>';
@@ -106,7 +105,7 @@ export function publicLayout(active, content) {
   const extra = s.role ? [[homeFor(s.role), 'Мој простор →', 'mine']] : [['#/signup', 'Најава', 'login'], ['#/signup?role=trainer', 'Стани тренер', 'st'], ['#/signup?role=partner', 'Стани партнер', 'sp']];
   return '<header class="topbar">' + hamburger + logo() +
     '<nav class="topnav">' + links.map(([h, l, k]) => link(h, l, k)).join('') + '</nav>' +
-    '<div class="topbar-right">' + right + '</div></header>' + drawer([...links, ...extra], active, '') +
+    '<div class="topbar-right">' + right + '</div></header>' + drawer([...links, ...extra], active) +
     '<main class="page">' + content + '</main>';
 }
 
@@ -153,7 +152,7 @@ export function bell(role, n) {
     (n ? '<span class="badge">' + n + '</span>' : '') + '</a>';
 }
 
-// ---- Клиент на телефон: долна лента + „Повеќе“ ----
+// ---- Долна лента на телефон (клиент, тренер, партнер): најчестото на еден допир, останатото под „Повеќе“ ----
 // Иконите се 24×24, линија (боја од текстот).
 const svg24 = (d) => '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">' + d + '</svg>';
 const NAV_ICONS = {
@@ -169,64 +168,85 @@ const NAV_ICONS = {
   partners: svg24('<path d="M4 4h8l8 8-8 8-8-8z"/><circle cx="8.5" cy="8.5" r="1.2"/>'),
   find: svg24('<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>'),
   settings: svg24('<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/>'),
+  clients: svg24('<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>'),
+  edit: svg24('<path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>'),
+  view: svg24('<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>'),
 };
-const TAB_LABEL = { home: 'Преглед', plan: 'План', messages: 'Пораки', booking: 'Термини', find: 'Тренери' };
+// исти работи, исти икони кај другите улоги
+Object.assign(NAV_ICONS, { calendar: NAV_ICONS.booking, plans: NAV_ICONS.plan, profile: NAV_ICONS.settings, all: NAV_ICONS.partners });
+const BADGE_WORD = { messages: ['нова порака', 'нови пораки'], clients: ['ново барање', 'нови барања'] };
 const navItem = (key) => CLIENT_NAV.find(([, , k]) => k === key);
+const partnerNav = (s) => PARTNER_NAV.map(([h, l, k]) => [k === 'view' ? '#/partner/' + s.partnerId : h, l, k]);
 
-// Најчестото е на еден допир; останатото е под „Повеќе“.
-// Ако клиентот уште нема тренер, наместо „План“ стои „Тренери“ (а „Мој план“ оди под „Повеќе“).
-function clientTabs(active, waiting, s) {
-  const keys = clientTrainers(s.client.id).length ? ['home', 'plan', 'messages', 'booking'] : ['home', 'find', 'messages', 'booking'];
-  const tiles = CLIENT_NAV.filter(([, , k]) => !keys.includes(k) && k !== 'settings');
-  const moreOn = !keys.includes(active) && (active === 'settings' || tiles.some(([, , k]) => k === active));
-  const tab = (k) => {
-    const n = k === 'messages' ? waiting : 0;
-    return '<a class="tab' + (active === k ? ' on' : '') + '" href="' + navItem(k)[0] + '" data-act="moreClose"' + (active === k ? ' aria-current="page"' : '') +
-      (n ? ' aria-label="' + TAB_LABEL[k] + ', ' + n + (n === 1 ? ' нова порака' : ' нови пораки') + '"' : '') + '>' +
-      '<span class="tab-ic">' + NAV_ICONS[k] + (n ? '<span class="badge">' + n + '</span>' : '') + '</span>' + TAB_LABEL[k] + '</a>';
+// Што стои на лентата, што е под „Повеќе“ и кој е профил-редот — по улога.
+// Клиент без тренер: наместо „План“ стои „Тренери“ (а „Мој план“ оди под „Повеќе“).
+function tabsFor(role, s) {
+  if (role === 'trainer') {
+    const tr = trainerOf(s);
+    return {
+      nav: trainerNav(s), keys: ['home', 'clients', 'messages', 'calendar'], me: 'profile',
+      label: { home: 'Преглед', clients: 'Клиенти', messages: 'Пораки', calendar: 'Календар' },
+      who: { ini: initials(tr.name), name: tr.name, sub: 'Мој профил и поставки', href: '#/t/profile' },
+    };
+  }
+  if (role === 'partner') {
+    const pa = partnerOf(s.partnerId) || { name: 'Партнер', category: '' };
+    return {
+      nav: partnerNav(s), keys: ['home', 'edit', 'all'], me: 'edit',
+      label: { home: 'Преглед', edit: 'Профил', all: 'Партнери' },
+      who: { ini: initials(pa.name), name: pa.name, sub: 'Партнер' + (pa.category ? ' · ' + pa.category : ''), href: '#/p/profile' },
+    };
+  }
+  return {
+    nav: CLIENT_NAV, keys: clientTrainers(s.client.id).length ? ['home', 'plan', 'messages', 'booking'] : ['home', 'find', 'messages', 'booking'], me: 'settings',
+    label: { home: 'Преглед', plan: 'План', messages: 'Пораки', booking: 'Термини', find: 'Тренери' },
+    who: { ini: initials(s.client.name), name: s.client.name, sub: 'Мој профил и поставки', href: '#/c/settings' },
   };
-  const tile = ([href, label, key]) => '<a class="more-tile' + (active === key ? ' on' : '') + '" href="' + href + '" data-act="moreClose"><span class="more-ic">' + NAV_ICONS[key] + '</span><span>' + label + '</span></a>';
-  return '<nav class="tabbar" aria-label="Главна навигација">' + keys.map(tab).join('') +
+}
+
+function roleTabs(role, active, s, badges) {
+  const c = tabsFor(role, s);
+  const item = (key) => c.nav.find(([, , k]) => k === key);
+  const tiles = c.nav.filter(([, , k]) => !c.keys.includes(k) && k !== c.me);
+  const moreOn = !c.keys.includes(active) && (active === c.me || tiles.some(([, , k]) => k === active));
+  const tab = (k) => {
+    const n = badges[k] || 0; const w = BADGE_WORD[k];
+    return '<a class="tab' + (active === k ? ' on' : '') + '" href="' + item(k)[0] + '" data-act="moreClose"' + (active === k ? ' aria-current="page"' : '') +
+      (n && w ? ' aria-label="' + c.label[k] + ', ' + n + ' ' + w[n === 1 ? 0 : 1] + '"' : '') + '>' +
+      '<span class="tab-ic">' + NAV_ICONS[k] + (n ? '<span class="badge">' + n + '</span>' : '') + '</span>' + c.label[k] + '</a>';
+  };
+  const tile = ([href, label, key]) => '<a class="more-tile' + (active === key ? ' on' : '') + '" href="' + href + '" data-act="moreClose"><span class="more-ic">' + NAV_ICONS[key] + '</span><span>' + esc(label) + '</span></a>';
+  const w = c.who;
+  return '<nav class="tabbar" aria-label="Главна навигација">' + c.keys.map(tab).join('') +
     '<button type="button" class="tab tab-more' + (moreOn ? ' on' : '') + '" data-act="moreToggle" aria-haspopup="dialog" aria-expanded="false" aria-controls="more-sheet"><span class="tab-ic">' + NAV_ICONS.more + '</span>Повеќе</button></nav>' +
     '<div class="more" id="more-sheet" role="dialog" aria-modal="true" aria-label="Повеќе"><div class="more-back" data-act="moreClose"></div><div class="more-panel" tabindex="-1"><div class="more-grab" aria-hidden="true"></div>' +
-    '<a class="more-me' + (active === 'settings' ? ' on' : '') + '" href="#/c/settings" data-act="moreClose"><span class="avatar accent-bg">' + initials(s.client.name) + '</span><span class="grow"><span class="strong block">' + esc(s.client.name) + '</span><span class="muted small">Мој профил и поставки</span></span><span class="more-go" aria-hidden="true">›</span></a>' +
-    '<div class="more-tiles">' + tiles.map(tile).join('') + '</div>' +
+    '<a class="more-me' + (active === c.me ? ' on' : '') + '" href="' + w.href + '" data-act="moreClose"><span class="avatar accent-bg">' + esc(w.ini) + '</span><span class="grow"><span class="strong block">' + esc(w.name) + '</span><span class="muted small">' + esc(w.sub) + '</span></span><span class="more-go" aria-hidden="true">›</span></a>' +
+    (tiles.length ? '<div class="more-tiles">' + tiles.map(tile).join('') + '</div>' : '') +
     '<div class="more-demo">' + demoControls() + '</div></div></div>';
 }
 
-// Изглед за најавен корисник: странично мени на компјутер; на телефон клиентот има долна лента, тренерот и партнерот хамбургер мени.
-// opts.full — цела висина (чет); opts.back — стрелка „назад“ наместо знакот (клиент); opts.noTabs — без долна лента (на пр. кога на дното има главно копче).
+// Изглед за најавен корисник: странично мени на компјутер; на телефон долна лента + „Повеќе“ (клиент, тренер и партнер).
+// opts.full — цела висина (чет); opts.back — стрелка „назад“ наместо знакот; opts.noTabs — без долна лента (на пр. кога на дното има главно копче или е отворен чет).
 export function appLayout(role, active, content, opts = {}) {
   const s = get();
-  const isClient = role === 'client';
-  const nav = role === 'trainer' ? trainerNav(s) : role === 'partner' ? PARTNER_NAV.map(([h, l, k]) => [k === 'view' ? '#/partner/' + s.partnerId : h, l, k]) : CLIENT_NAV;
+  const nav = role === 'trainer' ? trainerNav(s) : role === 'partner' ? partnerNav(s) : CLIENT_NAV;
   const unread = role === 'partner' ? 0 : unreadCount();
-  const waiting = isClient ? waitingThreads(s.client.id) : 0;
-  const badge = (key) => { const n = key === 'notif' ? unread : key === 'messages' ? waiting : 0; return n ? '<span class="badge">' + n + '</span>' : ''; };
+  // бројки што бараат внимание: клиент — разговори што чекаат одговор; тренер — истото + нови барања
+  const badges = role === 'client' ? { messages: waitingThreads(s.client.id) }
+    : role === 'trainer' ? { messages: trainerWaitingThreads(s.trainerId), clients: pendingRequestCount(s.trainerId) } : {};
+  const badge = (key) => { const n = key === 'notif' ? unread : badges[key] || 0; return n ? '<span class="badge">' + n + '</span>' : ''; };
   const sideLink = ([href, label, key]) => '<a href="' + href + '" class="side-link' + (active === key ? ' on' : '') + '">' + label + badge(key) + '</a>';
-  const items = isClient
+  const items = role === 'client'
     ? CLIENT_GROUPS.map(([head, keys]) => (head ? '<div class="side-group">' + head + '</div>' : '') + keys.map((k) => sideLink(navItem(k))).join('')).join('')
     : nav.map(sideLink).join('');
-  let extra, who = '';
-  if (role === 'trainer') {
-    const tr = trainerOf(s);
-    extra = ''; // без кутија за претплата во менито на тренерот
-    who = '<span class="avatar accent-bg">' + initials(tr.name) + '</span><span><span class="strong block">' + esc(tr.name) + '</span><span class="muted small">' + esc(kindLabels(tr)[0]) + (tr.founder ? ' · Основач' : '') + '</span></span>';
-  } else if (role === 'partner') {
-    extra = '<div class="side-card"><div class="eyebrow accent">ПАРТНЕР · АКТИВЕН</div><div class="muted small">Месечна претплата</div></div>';
-    who = '<span class="avatar accent-bg">ФЗ</span><span><span class="strong block">Фит Зона Аеродром</span><span class="muted small">Партнер · Теретана</span></span>';
-  } else {
-    extra = ''; // без кутија „Премиум“ во менито на клиентот
-  }
+  const extra = role === 'partner' ? '<div class="side-card"><div class="eyebrow accent">ПАРТНЕР · АКТИВЕН</div><div class="muted small">Месечна претплата</div></div>' : '';
   const current = nav.find(([, , k]) => k === active);
   const title = current ? current[1] : active === 'notif' ? 'Известувања' : 'ТренирајБе';
-  const lead = !isClient ? hamburger
-    : opts.back ? '<a class="burger m-back" href="' + esc(opts.back) + '" aria-label="Назад">←</a>'
-    : '<a class="m-logo" href="#/c/home" aria-label="ТренирајБе — мој преглед">' + markSvg + '</a>';
+  const lead = opts.back ? '<a class="burger m-back" href="' + esc(opts.back) + '" aria-label="Назад">←</a>'
+    : '<a class="m-logo" href="' + homeFor(role) + '" aria-label="ТренирајБе — почетна">' + markSvg + '</a>';
   return '<div class="app' + (opts.full ? ' app-full' : '') + '"><aside class="side"><div class="side-top">' + logo() + bell(role, unread) + '</div><nav class="side-nav" aria-label="Мени">' + items + '</nav>' + extra + '</aside>' +
     '<div class="m-top">' + lead + '<span class="m-title">' + esc(title) + '</span>' + bell(role, unread) + '</div>' +
-    (isClient ? '' : drawer(nav.map(([h, l, k]) => [h, l, k, k === 'notif' ? unread : 0]), active, who)) +
-    '<main class="app-main">' + content + '</main>' + (isClient && !opts.noTabs ? clientTabs(active, waiting, s) : '') + '</div>';
+    '<main class="app-main">' + content + '</main>' + (opts.noTabs ? '' : roleTabs(role, active, s, badges)) + '</div>';
 }
 
 // Подлога на мапите: OpenStreetMap (бесплатно, без клуч). Изворот мора да стои на мапата („© OpenStreetMap contributors“).

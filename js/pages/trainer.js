@@ -215,7 +215,7 @@ export const messages = {
         '<a class="btn btn-accent btn-sm" href="#/t/clients/' + c.id + '">Напредок</a><a class="btn btn-ghost btn-sm" href="#/t/plans?c=' + c.id + '">Прати план</a>' + (myFeatures().recipes ? '<a class="btn btn-ghost btn-sm" href="#/t/recipes?c=' + c.id + '">Прати рецепт</a>' : '') + '<button type="button" class="btn btn-accent btn-sm" data-act="videoCall">Видео повик</button></header>' +
         pinBar({ cid: c.id, tid: tid(), goal: c.goal, next: bk ? store.whenLabel(bk) : '', editable: true }) +
         '<div class="chat-body">' + chatBubbles(store.thread(c.id, tid()), tid()) + '</div>' + composer('sendMsg') + '</section></div>';
-    return appLayout('trainer', 'messages', content, { full: true });
+    return appLayout('trainer', 'messages', content, { full: true, noTabs: hasChat });
   },
   mount() { scrollChat(); },
   actions: {

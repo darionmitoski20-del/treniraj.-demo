@@ -949,6 +949,10 @@ button.res-tile { cursor: zoom-in; }
   body:has(.tabbar) .app-main { padding-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom) + 28px); }
   body:has(.tabbar) .app-full .app-main { flex: none; padding: 0; height: calc(100vh - 60px - var(--tabbar-h) - env(safe-area-inset-bottom)); height: calc(100dvh - 60px - var(--tabbar-h) - env(safe-area-inset-bottom)); }
   body.guide-open:has(.tabbar) .app-main { padding-bottom: calc(230px + var(--tabbar-h) + env(safe-area-inset-bottom)); }
+  /* лепливото „Зачувај“ (партнер) да не заврши под лентата */
+  body:has(.tabbar) .save-bar { bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom) + 12px); }
+  /* нови барања (тренер): копчињата се по големина на текстот и одат во нов ред ако не стојат, наместо текстот да излегува од копчето */
+  .list-row.req .req-btns .btn { flex: 1 1 auto; white-space: nowrap; }
   body:has(.tabbar) .guide { bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom) + 10px); }
   /* додека се пишува, лентата се крие (да не краде место над тастатурата) */
   body:has(textarea:focus, select:focus, input:is(:not([type]), [type=text], [type=search], [type=email], [type=tel], [type=url], [type=number], [type=password]):focus) .tabbar { display: none; }

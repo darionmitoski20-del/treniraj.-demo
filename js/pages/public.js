@@ -195,7 +195,10 @@ export const trainerProfile = {
         contactCard(t, canPriv, isOwner) +
         reviewsBlock(t.id, linked) +
       '</section></div>';
-    return s.role === 'client' ? appLayout('client', 'find', content, { back: '#/', noTabs: true }) : publicLayout('home', content);
+    if (s.role === 'client') return appLayout('client', 'find', content, { back: '#/', noTabs: true });
+    // Тренерот „Види како клиент“ останува во апликацијата (со долната лента и стрелка назад)
+    if (s.role === 'trainer') return appLayout('trainer', isOwner ? 'profile' : '', content, { back: '#/t/profile' });
+    return publicLayout('home', content);
   },
   mount() { if (store.get().role !== 'trainer') store.markStep('find'); },
   actions: {
@@ -457,7 +460,7 @@ export const partnerProfile = {
         '<div class="card"><h2 class="eyebrow muted">ЛОКАЦИЈА</h2>' + (p.lat ? '<div id="pmap" class="pmap"></div>' : '<p class="muted">' + (p.city === 'Онлајн' ? 'Работи онлајн, со достава низ Македонија.' : 'Локацијата не е внесена.') + '</p>') + '</div></div>' +
       '</section></div>';
     if (s.role === 'client') return appLayout('client', 'partners', content);
-    if (s.role === 'partner') return appLayout('partner', 'view', content);
+    if (s.role === 'partner') return appLayout('partner', s.partnerId === p.id ? 'view' : 'all', content);
     return publicLayout('partners', content);
   },
   mount(root, prm) {

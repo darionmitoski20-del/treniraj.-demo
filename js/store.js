@@ -361,6 +361,14 @@ export function waitingThreads(clientId) {
   return clientTrainers(clientId).filter((t) => { const th = thread(clientId, t.id); const l = th[th.length - 1]; return !!l && l.from !== clientId; }).length;
 }
 
+// Тренер: колку разговори чекаат одговор (последната порака е од клиент) и колку барања чекаат одлука.
+export function trainerWaitingThreads(trainerId) {
+  return state.links.filter((l) => l.trainerId === trainerId).filter((l) => { const th = thread(l.clientId, trainerId); const m = th[th.length - 1]; return !!m && m.from !== trainerId; }).length;
+}
+export function pendingRequestCount(trainerId) {
+  return state.requests.filter((r) => r.trainerId === trainerId && ['pending', 'asked'].includes(r.status)).length;
+}
+
 export function pendingRequestFrom(clientId, trainerId) {
   return state.requests.find((r) => r.clientId === clientId && r.trainerId === trainerId && ['pending', 'asked'].includes(r.status));
 }
